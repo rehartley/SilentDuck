@@ -1067,10 +1067,12 @@ def do_joinKeys( file_i, file_j, combinedKeyFile, prefix ):
    
     # combine ki's and kj's expanded tables digit-wise (not concatenation),
     # so a leak of this table only ever reveals ki_row + kj_row, never
-    # either sheet individually -- 252 rows total, not 504.
-    tmp = {}
-    for c in iTmp:
-        tmp[c] = stringAdd( iTmp[c], jTmp[c] )
+    # either sheet individually -- 252 rows total, not 504. Built as a
+    # list, iterated first to last, so the order is plain to a reader
+    # (and reproducible by hand) rather than relying on dict ordering.
+    tmp = []
+    for c in range( len(iTmp) ):
+        tmp.append( stringAdd( iTmp[c], jTmp[c] ) )
 
     iTmp = None
     jTmp = None
@@ -1103,8 +1105,7 @@ def do_joinKeys( file_i, file_j, combinedKeyFile, prefix ):
 
         for x in tmp:
             # remove five digit checksum from string x
-            s = tmp[x]
-            keys[len(keys)] = s[:-5:]
+            keys[len(keys)] = x[:-5:]
 
     
     # retvalue is otp array combined with random data ordered by checksum
@@ -1172,10 +1173,12 @@ def do_unjoinKeys( file_i, file_j, combinedKeyFile, prefix ):
    
     # combine ki's and kj's expanded tables digit-wise (not concatenation),
     # so a leak of this table only ever reveals ki_row + kj_row, never
-    # either sheet individually -- 252 rows total, not 504.
-    tmp = {}
-    for c in iTmp:
-        tmp[c] = stringAdd( iTmp[c], jTmp[c] )
+    # either sheet individually -- 252 rows total, not 504. Built as a
+    # list, iterated first to last, so the order is plain to a reader
+    # (and reproducible by hand) rather than relying on dict ordering.
+    tmp = []
+    for c in range( len(iTmp) ):
+        tmp.append( stringAdd( iTmp[c], jTmp[c] ) )
 
     iTmp = None
     jTmp = None
@@ -1207,8 +1210,7 @@ def do_unjoinKeys( file_i, file_j, combinedKeyFile, prefix ):
     else:
         for x in tmp:
             #remove the five digit checksum from the string x
-            s = tmp[x]
-            keys[len(keys)] = s[:-5:]
+            keys[len(keys)] = x[:-5:]
     
     # merge table into a single long string
     keysTmp = ''
