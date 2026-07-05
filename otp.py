@@ -3,31 +3,53 @@
 # -*- coding: utf-8 -*-
 # coding: cp1251
 
+# ########################################### #
+# Released under the BSD Zero Clause License  #
+# ########################################### #
+
 import sys
 import os
 import time
-import random
 from itertools import combinations
-from glob import glob # for command file wildcard expansion
+import pytextedit
 
-''' "SILENT DUCK", aka "SD", automates a TRIGON type one time pad "OTP" manual procedure, updated slightly for modern use. It has been developed to illustrate the methodology, and has deliberately not been optimised.
+''' "SILENT DUCK", aka "SD", automates a TRIGON type one time pad "OTP" manual
+procedure, updated slightly for modern use. It has been developed to illustrate
+the methodology, and has deliberately not been optimised.
 
-OTP is useful where enough keys for the maximum number of future mesage can be generated ahead of time before being faced with an imminent communications threat.
+OTP is useful where keys for every possible future mesage can be generated ahead of time before being faced with an immanentt communications threat.
 
 
-World reknowned computer cryptographer Bruce Schneier summarised OTP in one of his blog posts at:
+Bruce Schnenier summarised OTP at:
 https://www.schneier.com/crypto-gram/archives/2002/1015.html#7
 
-The post ends as follows:
-"One-time pads may be theoretically secure, but they are not secure in a practical sense. They replace a cryptographic problem that we know a lot about solving -- how to design secure algorithms -- with an implementation problem we have very little hope of solving. They're not the future. And you should look at anyone who says otherwise with deep and profound suspicion."
+"One-Time Pads
+It's a meme that never seems to go away. Every time I write about this cryptanalytic result, or the insecurity of that system, someone starts crowing about one-time pads. "Every other cryptographic algorithm is based on some assumption, and one-time pads are the only provably secure system," they say. "They're the only safe algorithm," they say. "They're the future," they say.
 
-OTP offers freedom of communication.
+Well, they're wrong. And step, by step, I will explain why. (Parts of this essay are taken from my book "Secrets and Lies.")
 
-This includes repudable of communications, the ability to not be directly quoted, as any OTP encrypted message can be "decrypted" to any other text, thus rendering any quotes as technically heresay.
+One-time pads are the simplest of all algorithms, and were invented early on in the 20th century. The basic idea is that you have a pad of paper with a bunch of randomly chosen key letters, the same size as the message, on it. You add one key letter to each plaintext letter, and never repeat the key letters. (That's the "one-time" part.) For example, assume the message is IT and the pad letters are CM. You add I (9) to C (3) to get L (12), or T (20) to M (13) to get G (7). (20 + 13 = 7 mod 26.) Then you burn the paper afterwards. The receiver reverses the process using his pad of paper, and then burns the key letters when he's done. This system works with any alphabet, including a binary one.
 
-OTP offers the option to be free of any technology more advanced than pen and paper.  There are pens with accelerometers that record and then transmit their movements allowing interlopers to reconstruct what was written, as well as paper and writing surfaces that will do the same. It would be very difficult for an adversary to ensure that every writing instrument was thus compromised.
+One-time pads are the only provably secure cryptosystem. Because the key is the same size as the plaintext, every possible plaintext is equally likely. With different keys, the ciphertext DKHS could decrypt to SELL, STOP, BLUE, or WFSH. With a normal algorithm, such as DES or AES or even RSA, you can tell which key is correct because only one key can produce a reasonable plaintext. (Formally, the message size needed is called the "unicity distance." It's about 19 ASCII bytes for an English message encrypted with a cipher with a 128-bit block. With a one-time pad, the unicity distance approaches infinity and it becomes impossible to recognize plaintext. This is the security proof.) Because a one-time pad's key is the same size as the message, it's impossible to tell when you have the correct decryption.
 
-It is also possible to have a large number of one time pads cached in case of loss or compromise.
+This is the only provably secure cryptosystem we know of.
+
+It's also pretty much useless. Because the key has to be as long as the message, it doesn't solve the security problem. One way to look at encryption is that it takes very long secrets -- the message -- and turns them into very short secrets: the key. With a one-time pad, you haven't shrunk the secret any. It's just as hard to courier the pad to the recipient as it is to courier the message itself. Modern cryptography encrypts large things -- Internet connections, digital audio and video, telephone conversations, etc. -- and dealing with one-time pads for those applications is just impracticable.
+
+If you think you know how to do key management, but you don't have much confidence in your ability to design good ciphers, a one-time pad might make sense. We're in precisely the opposite situation, however: we have a hard time getting the key management right (partly because most applications won't really support couriers with briefcases handcuffed to their wrists, Marines with rifles guarding the room with the encryption equipment in it, or thermite charges available for physically destroying storage media before the bad guys get past the Marines with rifles guarding the encryption equipment), but we're pretty confident in our ability to build reasonably strong algorithms. It's just not the weak point in our systems.
+
+What a one-time pad system does is take a difficult message security problem -- that's why you need encryption in the first place -- and turn it into a just-as-difficult key distribution problem. It's a "solution" that doesn't scale well, doesn't lend itself to mass-market distribution, is singularly ill-suited to computer networks, and just plain doesn't work.
+
+The exceptions to this are generally in specialized situations where simple key management is a solvable problem and the security requirement is timeshifting. In these situations, the problem isn't transporting the bits securely, but transporting the bits securely at the time the message is generated. Securing the bits beforehand is easy. And there are historical examples of one-time pads being used successfully, in specialized circumstances. Russian spies used pencil and paper one-time pads to communicate. (The NSA broke the system because the Russians reused the same one-time pads. Oops.) An early Teletype hotline between Washington and Moscow was encrypted using a one-time pad system. One-time pads were also used successfully in WWII by the English; spies in locations with radios but no other encoding equipment were given pads printed on silk, and were able to encode messages for transmission faster and more securely than by previous methods involving memorized poetry.
+
+Those examples used real one-time pads. Generally, products that claim to use a one-time pad actually don't. My guess is that the engineers quickly realize that they can't possibly implement a one-time pad, so they use the output of a stream cipher and call that a one-time-pad generator, or a virtual one-time pad, or almost a one-time pad, or some other marketing-speak. It's not a one-time pad. The security proof completely fails when you use a stream cipher.
+
+On the other hand, if you ever find a product that actually uses a one-time pad, it is almost certainly unusable and/or insecure.
+
+So, let me summarize. One-time pads are useless for all but very specialized applications, primarily historical and non-computer. And almost any system that uses a one-time pad is insecure. It will claim to use a one-time pad, but actually use a two-time pad (oops). Or it will claim to use a one-time pad, but actually use a stream cipher. Or it will use a one-time pad, but won't deal with message re-synchronization and re-transmission attacks. Or it will ignore message authentication, and be susceptible to bit-flipping attacks and the like. Or it will fall prey to keystream reuse attacks. Etc., etc., etc.
+
+One-time pads may be theoretically secure, but they are not secure in a practical sense. They replace a cryptographic problem that we know a lot about solving -- how to design secure algorithms -- with an implementation problem we have very little hope of solving. They're not the future. And you should look at anyone who says otherwise with deep and profound suspicion."
+
 
 '''
 
@@ -45,17 +67,24 @@ entropyGatheringSleepTime = 0 # zero is no sleep
 fetchedEntropyCount = 0
 fetchedEntropyQuota = 25 # five groups of five digits.
 
-'''Iteration count for the number of times we fetch a random value and combine it with another one.  This can "whiten" the key stream, but may deplete entropy levels quicker, lumping the higher entropy consumption towards the start of the generated key stream.  If doing lots of key generation, will deplete the entropy quicker, so can set to a higher number.
+'''Iteration count for the number of times we fetch a random value and combine
+it with another one.  This can "whiten" the key stream, but may deplete entropy
+levels quicker, lumping the higher entropy consumption towards the start of the
+generated key stream.  If doing lots of key generation, will deplete the entropy
+quicker, so can set to a higher number.
 
-Also, because it can slow down keye generation appreciably, it feels like there is more "compute" going on, and might impart more feelings of trust to results.
+Also, because it can slow down keye generation appreciably, it feels like there
+is more "compute" going on, and might impart more feelings of trust to results.
 
 Feel free to ignore, since we have the key / code combine capability built-in. 
 '''
 RANDOM_DUPLICATES = 0
 
-'''Historical TRIGON was longer: 5 digits X 8 groups X 40 liness per page, with 1600 digits per page 10 x 6 cm page.
+'''Historical TRIGON was longer: 5 digits X 8 groups X 40 liness per page, with
+1600 digits per page 10 x 6 cm page.
 
-To focus on shorter messages, with 25 sheet pads one sixth the size, composed of random digit versions of:
+To focus on shorter messages, with 25 sheet pads one sixth the size, composed of
+random digit versions of:
 
 01234 56789 01234 56789 01234
 56789 01234 56789 01234 56789
@@ -83,13 +112,10 @@ PADSIZE = SHEETSIZE * PAGESPERPAD
 
 _print_debug_msg_ = True
 
-# print debug message
 def dbg( s ):
     if _print_debug_msg_:
-        s = s.encode('utf-8').decode('ascii', 'ignore')
         print( s )
 
-# print debug message, and exit
 def die( s ):
     dbg( s )
     sys.exit(1)
@@ -97,6 +123,9 @@ def die( s ):
 
 # read a file, return contents as a string
 def readFile( fn ):
+    if fn == 'EDITOR':
+        return pytextedit.editString( filename='EDITOR' )
+
     tmp = ''
     try:
         f = open( fn, 'r' , encoding="utf-8")
@@ -110,6 +139,10 @@ def readFile( fn ):
 # append string to end of file
 def writeFile( fn, s ):
     global testingMode
+
+    if fn == 'EDITOR':
+        pytextedit.editString( string=s, filename='EDITOR' )
+        return
 
     if testingMode == True:
         dbg( 'NOTE: TESTING MODE: writeFile() will not write to file: ' + fn )
@@ -182,7 +215,6 @@ combo5x10 = [ # m: 5, n: 10, 252 combinations
     "46789", "56789"
 ] # combo5x10 table
 
-
 # given a number, what letter is TAUV4E6BDN'
 
 ignoreChars = ' \n'
@@ -195,7 +227,6 @@ morseCutNumber = { 'T':'0', 'A':'1', 'U':'2', 'V':'3', '4':'4',
                     'E':'5', '6':'6', 'B':'7', 'D':'8', 'N':'9' }
 
 
-# convert a string of digits into the Morse cut format
 def toMorseCut( s ):
     if useMorseShorts == False:
         return s
@@ -212,11 +243,11 @@ def toMorseCut( s ):
     return tmp
 
 
-# convert a set of letters in Morse cut format into digits
+
 def fromMorseCut( s ):
     if useMorseShorts == False:
         return s
-    s = s.lower()
+    s = s.upper()
     tmp = ''
     for ch in s:
         if ch in ignoreChars:
@@ -230,7 +261,7 @@ def fromMorseCut( s ):
 
 
 # list of roman and cyrillic letters of the alphabet we will process
-validStr = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ*?:@/~#., \n0123456789АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЫЬЭЮЯ'
+validStr = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ?:@/~#., \n0123456789АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЫЬЭЮЯ'
 
 # return true if all characters are in validStr above
 def stringValid( s ):
@@ -252,7 +283,6 @@ def stringDigits( s ):
     return tmp
 
 
-# load a file and strip out all non-digits
 def loadKeyPad( fn ):
     tmp = readFile( fn )
     tmp = stringDigits( tmp )
@@ -268,50 +298,24 @@ numberCodes =  ['00','11','22','33','44','55','66','77','88','99']
 # this is our number to letter lookup table for Roman letters
 latletter2numberTbl = {}
 
-'''
-Start message indicator (SMI) is used in "VIC" cipher:
-https://www.cia.gov/library/center-for-the-study-of-intelligence/kent-csi/vol5no4/html/v05i4a09p_0001.htm
-
-Break message plain text randomly somewhere, place start at end with SMI connecting them. Place it in the
-middle somewhere and do the rearranging of start and end sections. look for it first, juggle the message,
-then parse as normal.
-''' 
-
 number2latletterTbl = {
     # single digits
     '0':'A', '1':'E', '2':'N', '3':'R', '4':'O', '5':'I', '6':'T',
     # double digits
-    '70':'B', '71':'C', '72':'G', '73':'D', '74':'F', '75':'H', '76':'J', '77':'K', '78':'L', '79':'M',
-    '80':'P', '81':'Q', '82':'S', '83':'U', '84':'V', '85':'W', '86':'X', '87':'Y', '88':'Z', '89':'',
-    # these four take place of the Cyrillic letters
+    '70':'B', '71':'C', '72':'G', '73':'D', '74':'F',
+    '75':'H', '76':'J', '77':'K', '78':'L', '79':'M',
+    '80':'P', '81':'Q', '82':'S', '83':'U', '84':'V',
+    '85':'W', '86':'X', '87':'Y', '88':'Z', '89':'', 
+    # 89 raw code char, followed by digit count of four digits
     '90':'?', '91':':', '92':'@', '93':'/',
 
     # 94 11 22 33 94 = '123'
     '94':'#', # digit shift code double digits then another shift code
-    '95':'.', # period
-    
-    '96':'*', # CODE ESCAPE - start message indicator (SMI) is '**'  9696, 
-              # ideas for the future use of rare characters:
-              # 960 "a" is ',' <done>
-              # 961 "e" is '-'
-              # 962 "n" is '@'
-              # 963 "r" is ';'
-              # 964 "o" is '$'
-              # 965 "i" is '%'
-              # 966 "t" is '<'
-              # 967 "" is '>'
-              # 968 "" is '*'
-              # 969 "" is 'DOUBLE ESCAPE CODE'
-              # 9690 "" is ''
-              # 9691 "" is ''
-              # 9692 "" is ''
-              # 9693 "" is ''
-              # 9694 "" is ''
-              # 9695 "" is ''
-              # 9696 "**" is '**' the SMI
-    '97':'\n', # new line character
-    '98':' ', # space character
-    '99':'~' } # tilde for switching alphabets
+    '95':'.',
+    '96':',',
+    '97':'\n',
+    '98':' ',
+    '99':'~' }
 
 # cyrillic section
 cyrletter2numberTbl = {}
@@ -321,17 +325,17 @@ number2cyrletterTbl = {
     # single digits
     '0':'А', '1':'Е', '2':'И', '3':'Н', '4':'О', '5':'С', '6':'Т',
     # double digits
-    '70':'Б', '71':'В', '72':'Г', '73':'Д', '74':'Ж', '75':'З', '76':'Й', '77':'К', '78':'Л', '79':'М',
-    '80':'П', '81':'Р', '82':'У', '83':'Ф', '84':'Х', '85':'Ц', '86':'Ч', '87':'Ш', '88':'Щ', '89':'Ы',
+    '70':'Б', '71':'В', '72':'Г', '73':'Д', '74':'Ж',
+    '75':'З', '76':'Й', '77':'К', '78':'Л', '79':'М',
+    '80':'П', '81':'Р', '82':'У', '83':'Ф', '84':'Х',
+    '85':'Ц', '86':'Ч', '87':'Ш', '88':'Щ', '89':'Ы',
     # 
     '90':'Ь', '91':'Э', '92':'Ю', '93':'Я', 
 
     # 94 11 22 33 94 = '123'
     '94':'#', # digit shift code double digits then another shift code
-    '95':'.', # period
-    
-    '96':'*', # SMI - Russian uses less commas, sorry, :(  so it becomes: 99 89 99 in Cyrillic 
-    
+    '95':'.',
+    '96':',',
     '97':'\n',
     '98':' ',
     '99':'~'  # tilde is our cyr lat shift code
@@ -405,34 +409,37 @@ def entropySleep():
 Notes about random data:
 https://docs.python.org/3/library/os.html
 
-On Windows, os.urandom() internally uses CryptGenRandom(), which uses RC4, and this is said to be infrequently reseeded.
+On Windows, os.urandom() internally uses CryptGenRandom(), which uses RC4,
+and this is said to be infrequently reseeded.
 - https://docs.microsoft.com/en-us/windows/win32/api/wincrypt/nf-wincrypt-cryptgenrandom
 - https://en.wikipedia.org/wiki/CryptGenRandom
 
 On Linux we have /dev/random
 - https://en.wikipedia.org/wiki//dev/random
 
-So, in the end, this data is NOT random in the religious sense followers of the Church of Randomology would prefer, but it has great potential to be unpredictable enough .
+So, in the end, this data is NOT random in the religious sense followers of
+the Church of Randomology would prefer, but it has great potential to be
+unpredictable enough .
 
 '''
-
-# fetch a single digit in the range of '0' to '9', wasting only 6/256 of the entropy
+# fetch a single digit in the range of '0' to '9'
 def randDigit():
-    entropySleep() # give our OS's entropy gathering a breather.
-    
-    tmp = os.urandom(1)
-    
-    while tmp > b'\xf9': # 'f9' is hex for 249
-        tmp = os.urandom(1)
 
-    return str( ord(tmp) % 10 )
+    entropySleep() # give our OS's entropy gathering a breather.
+            
+    tmp = 10    
+    while (tmp>9):
+        tmp = ord( os.urandom(1) )
+        if tmp < 250:
+            tmp = tmp % 10
+    return str(tmp)
 
 
 # invoke the above to create a string of digits with length 'dc'
 def getRandDigits( dc ):
     tmp = ''
 
-    for _ in range( dc ):
+    for x in range( dc ):
         tmp += randDigit()
     return tmp
 
@@ -450,8 +457,7 @@ def randDigits( dc ):
     return tmp
 
 
-# add a to b, with result the length of "a"
-# length of "a" can be less than or equal length of "b"
+# add a to b, with result the length of a
 def stringAdd( a, b ):
     if len(a) > len(b):
         die( 'stringAdd( a, b ): len(a) > len(b) by ' + str( len(a)-len(b) ) + ' characters.')
@@ -474,96 +480,12 @@ def stringSubtract( a, b ):
 
     tmp = ''
 
-
     for x in range( len(a) ):
         d = int(a[x]) - int(b[x])
         if d<0:
             d+=10
         tmp += str( d )
     return tmp
-
-
-'''
-Using unique code 89 '*' doubled as our start message indicator SMI '**'
-
-Chop message in two parts, randomly sized, transpose pieces, join with '**'
-(we want to do other codes prefixed with '*')
-
-Need to parse through alphabet changes and runs of digits. This would be a
-complex and error prone way to do it, unless we spelled out digits and anly
-used one alphabet - we have an elegant way of doing one thing obviating an
-inelegant way of doing another.  in our case, we wish to be trigon compatible.
-
-NOTE: Because the above can cause problems down the line we will instead do
-this in message preparation - first five digit group indicates start group.
-
-Much cleaner.
-Sadly.
-:(
-
-'''
-
-def do_startOfMessageIndicator_insert(s):
-    '''
-    dbg( 'do_startOfMessageIndicator_insert()' )
-
-
-    a = ''
-    b = ''
-    lenS = len(s)
-    
-    # may already have been done by hand, in testing, so just go with it.
-    x = s.find('**')    # x == -1 if not there
-    dbg( 'lenS: ' + str(lenS) )
-    
-    
-    # abc -> c**ab or bc**a
-    if (lenS > 2) and (x == -1):
-        systemRandom = random.SystemRandom()
-        x=systemRandom.randint(1,lenS-1)
-        dbg( 'x: ' + str(x) )
-        
-    a = s[:x+1]
-    b = s[x+1:]
-    
-    dbg( 'a: ' + a ) 
-    dbg( 'b: ' + b )
-
-    s = b + '**' + a
-    
-    dbg( 's: ' + s )
-    '''
-    return s
-
-
-# find SMI, split and rearrange message to original
-def do_startOfMessageIndicator_remove(s):
-    '''
-    dbg( 'do_startOfMessageIndicator_remove()' )
-
-    x = s.find('**')
-    dbg( 'x: ' + str(x) )
-    
-    if x > -1:
-        a = s[:x]
-        b = s[x+2:]
-        
-        dbg( 'a: ' + a )
-        dbg( 'b: ' + b )
-
-        s = b + '**' + a
-
-        dbg( 's: ' + s )
-        
-        s = s[:x] + s[x:] # s[x+2:]
-    else:
-        # for some reason it was not there, perhaps forgotten when done manually
-        pass
-    
-    dbg(s)
-    '''
-    return s
-    
 
 
 # convert letters of a string into digits using tables above
@@ -585,9 +507,6 @@ def encode( strIn ):
     if not stringValid( s ):
         dbg( 'invalid characters in string: ' + s )
         return ''
-    
-    # s = do_startOfMessageIndicator_insert(s)
-    
     x=0
     
     while x < lenS:
@@ -698,9 +617,7 @@ def decode( strIn ):
             tmp += ch
 
         x += 1
-    # end of while
-    
-    # tmp = do_startOfMessageIndicator_remove(tmp)
+
     return tmp
 
 def init():
@@ -712,7 +629,7 @@ def init():
 
 def do_version():
     die( 'SILENT DUCK - OTP (one time pad) version: ' + versionStr +
-         ',\nCopyright (c) 1994, released under Creative Commons (CC).' )
+         ',\nCopyright (c) July 1994, released under Creative Commons (CC).' )
 
 
 def do_brief_help():
@@ -736,6 +653,10 @@ def do_brief_help():
 -b combine two encoded streams together, deleting after new stream is output
 -w wipe files
 
+Use the filename "EDITOR" in place of any -i/-o/-c/-p/-a/-y file argument (or
+a key filename) to type/read that text on screen via a built-in full-screen
+editor instead of touching the file system.
+
 -hh helpful help with more text.
 
 '''
@@ -743,7 +664,7 @@ def do_brief_help():
 
 
 def do_help():
-    helpStr="""
+    helpStr='''
 This app automates manual one time pad (OTP) encryption of text, digits and some punctuation characters.
 
 
@@ -754,6 +675,25 @@ This app automates manual one time pad (OTP) encryption of text, digits and some
 1) In the interests of security, input files are wiped and erased from the file system.
 2) You may use the "-k" option to indicate that input files are to be kept.
 3) The "-t" option may also be used to indicate that no output files will be created.
+
+
+
+Reading/writing text without touching the file system:
+
+Instead of a real filename, pass the special name "EDITOR" to any -i, -o, -c,
+-p, -a, or -y file argument (or as a key filename) to bring up a built-in
+full-screen text editor:
+
+  - As an input (-i, -c, -p, -a, or a key file), "EDITOR" opens an empty
+    editor for you to type/paste text into; the buffer's contents are used
+    in place of a file's contents when you exit (F2 / Ctrl+S).
+  - As an output (-o, -y, -c), "EDITOR" displays the resulting text (e.g.
+    deciphered plaintext) full-screen instead of writing it to a file;
+    nothing is saved back, so it never touches the file system.
+
+This lets you encipher/decipher messages, or view decrypted output, without
+ever writing plaintext to disk. "EDITOR" is also skipped by the automatic
+file-wiping step, since there is no file on disk to wipe.
 
 
 
@@ -816,14 +756,18 @@ otp -q 3 ....
 # provide filename prefix for the 25 pages with page number appended, ex: keys/XX123-01.otk
 otp -g -y keys/XX123
 
-# -e encipher file 
+# -e encipher file
 otp -e -i inputfile.txt -o outputfile.otp keys/XX123-01.otk
 # same but specifying keys 5,6,7 (Linux/OSX/Android):
 otp -e -i inputfile.txt -o outputfile.otp keys/XX123-0[5,6,7].otk
+# type the plaintext on screen instead of reading a file:
+otp -e -i EDITOR -o outputfile.otp keys/XX123-01.otk
 
 # -d decipher file
 # (keys work same as above)
 otp -d -i outputfile.otp -o cleartext.txt keys/XX123*.otk
+# view the deciphered plaintext on screen instead of writing a file:
+otp -d -i outputfile.otp -o EDITOR keys/XX123*.otk
 
 # -f generate key for previouly enciphered message based on known clear text
 otp -f -c ciphertext.otp -p plaintext.txt -y newkey.otk
@@ -845,7 +789,7 @@ otp -b -i input1.otk -a input2.otk -c combined -y keyPrefix
 
 # -w wipe files
 otp -w splitA/* keys/* *.ot? *.txt
-"""
+'''
 
     die( helpStr )
 
@@ -857,7 +801,8 @@ def do_keygen( prefix ):
 
     global DIGITSPERGROUP # = 5
     global GROUPSPERLINE # = 10 # 5
-    global LINESPERPAGE # = 50 # 10        
+    global LINESPERPAGE # = 50 # 10
+        
 
     global SHEETSIZE # = DIGITSPERGROUP * GROUPSPERLINE * LINESPERPAGE
 
@@ -875,10 +820,10 @@ def do_keygen( prefix ):
         on top of it.
         '''
         tmp = '0' * SHEETSIZE
-        for _ in range( 1 + RANDOM_DUPLICATES ):
+        for i in range( 1 + RANDOM_DUPLICATES ):
             tmp = stringAdd( tmp, randDigits( SHEETSIZE ) )
-        
-        writeFile( fn, codeGroups(  randDigits( SHEETSIZE ) ) )
+
+        writeFile( fn, codeGroups( tmp ) )
 
 
 def loadKeys( keyList ):
@@ -890,7 +835,6 @@ def loadKeys( keyList ):
     return key
     
 def wipeKeys( keyList ):
-    global keepKeyFilesAfterUse
     if keepKeyFilesAfterUse:
         dbg( 'WARNING: Keys being kept after use!' )
         return
@@ -902,7 +846,6 @@ def wipeKeys( keyList ):
 
 
 def do_encipher( inputFilename, outputFilename, keyList ):
-    global keepKeyFilesAfterUse
     key = loadKeys( keyList )
     
     inputTxt = readFile( inputFilename )
@@ -921,17 +864,17 @@ def do_encipher( inputFilename, outputFilename, keyList ):
     
     cgTxt = codeGroups( toMorseCut( cipherTxt ) )
     writeFile( outputFilename, cgTxt )
+    
+    wipeKeys( keyList )  
 
     if keepKeyFilesAfterUse:
         dbg( 'WARNING: Plain text being kept after encryption!' )
     else:
         wipeFile( inputFilename )
-        wipeKeys( keyList )
 
 
 
 def do_decipher( inputFilename, outputFilename, keyList ):
-    global keepKeyFilesAfterUse
     key = loadKeys( keyList )
     
     inputTxt = readFile( inputFilename )
@@ -1014,6 +957,9 @@ def combinateExpandedKeys( keyInput ):
     otp_tmp = {}
     s = ""
     checkSumString = ''
+    i = 0
+    j = 0
+    r = 0
     retVal = {}
    
     # code is meant to be easy to read and understand by new Lua coders, it it is not meant to be optimised.
@@ -1074,7 +1020,11 @@ random keypad sheets
   Answer: Could get rid of the checksum randomizing, and keep two pad feature.
   One benefit of there being 252 combinations is that the last two rows of the
   first pad are now the first two rows of the second.  This means we avoid the
-  two pads being the simple sum of each other when joined up.
+  two pads being the simple sum of each other when 
+  
+  
+  
+  joined up.
 
 '''
 
@@ -1095,7 +1045,6 @@ checkSumRandomizing = False
 
 def do_joinKeys( file_i, file_j, combinedKeyFile, prefix ):
    
-    prefix += '-'
     ki = loadKeyPad( file_i )
    
     if( len(ki) != SHEETSIZE ):
@@ -1116,14 +1065,13 @@ def do_joinKeys( file_i, file_j, combinedKeyFile, prefix ):
    
     kj = None
    
-    tmp = iTmp
-   
-    # append second key sheet to first making one table
-    # with 504 rows
+    # combine ki's and kj's expanded tables digit-wise (not concatenation),
+    # so a leak of this table only ever reveals ki_row + kj_row, never
+    # either sheet individually -- 252 rows total, not 504.
+    tmp = {}
+    for c in iTmp:
+        tmp[c] = stringAdd( iTmp[c], jTmp[c] )
 
-    for j in jTmp:
-        tmp[ len(tmp) ] = jTmp[j]
-   
     iTmp = None
     jTmp = None
 
@@ -1145,7 +1093,7 @@ def do_joinKeys( file_i, file_j, combinedKeyFile, prefix ):
             x = x[:-5:]
 
             # find next empty spot by avoiding hash/checksum collisions
-            while( keys[checkSumString] != None ):
+            while( checkSumString in keys ):
                 csNum = int(checkSumString)  + 1
                 checkSumString = '{:05}'.format(csNum )
 
@@ -1189,29 +1137,31 @@ def do_joinKeys( file_i, file_j, combinedKeyFile, prefix ):
         filename = prefix + '{:02}'.format( i+1 ) + '.otk'
 
         writeFile(filename, codeGroups( tmpStr ) )
-# end do_joinKeys() -- aka: keygencombine()
 
+    if keepKeyFilesAfterUse:
+        dbg( 'WARNING: Input key files being kept after use!' )
+    else:
+        wipeFile( file_i )
+        wipeFile( file_j )
+# end -- keygencombine()
 
 
 # copied from above, though it is not the same - be careful
 
 def do_unjoinKeys( file_i, file_j, combinedKeyFile, prefix ):
-    prefix += '-'
-    global keepKeyFilesAfterUse
     i = 0
-    j = 0
-    
+
     ki = loadKeyPad( file_i )
    
     if( len(ki) != SHEETSIZE ):
-        print( len(ki), 'ki:', ki )
-        quit( 'bad first key:')
-   
+        dbg( str(len(ki)) + ', ki:' + ki )
+        die( 'bad first key:')
+
     kj = loadKeyPad( file_j )
-   
+
     if( len(kj) != SHEETSIZE ):
-        print( len(kj), 'kj:', kj )
-        quit( 'bad second key')
+        dbg( str(len(kj)) + ', kj:' + kj )
+        die( 'bad second key')
 
    
     iTmp = combinateExpandedKeys( ki )
@@ -1220,13 +1170,13 @@ def do_unjoinKeys( file_i, file_j, combinedKeyFile, prefix ):
     jTmp = combinateExpandedKeys( kj )
     kj = None
    
-    # append second key sheet to first making one table
-    # with 504 rows
-    tmp = iTmp
+    # combine ki's and kj's expanded tables digit-wise (not concatenation),
+    # so a leak of this table only ever reveals ki_row + kj_row, never
+    # either sheet individually -- 252 rows total, not 504.
+    tmp = {}
+    for c in iTmp:
+        tmp[c] = stringAdd( iTmp[c], jTmp[c] )
 
-    for j in jTmp:
-        tmp[len(tmp)] = jTmp[j]
-   
     iTmp = None
     jTmp = None
 
@@ -1248,7 +1198,7 @@ def do_unjoinKeys( file_i, file_j, combinedKeyFile, prefix ):
             x = x[:-5:]
 
             # to avoid hashing/ checksum collisions, we find the next empty spot
-            while( keys[checkSumString] != None ):
+            while( checkSumString in keys ):
                 csNum = int(checkSumString) + 1
                 checkSumString = '{:05}'.format(csNum )
 
@@ -1329,8 +1279,9 @@ def doMsgSplit( msg, count ):
    
     r=''
     tmp=msg
+    i=0
    
-    for _ in range(count-1):
+    for i in range(count-1):
         r = randDigits( msgLen )
         tbl.append( r )
         tmp = stringSubtract( tmp, r )
@@ -1340,24 +1291,12 @@ def doMsgSplit( msg, count ):
     return tbl
 
 
-# merge table of strings of digits [0-9] into one string of digits  using addition with no carry
-
-def doMsgMerge( tbl ):
-    tmp = '0' * len( tbl[0] )
-    
-    for t in tbl:
-        tmp = stringAdd( tmp, t )
-
-    return tmp
-
-
 # split message into parts requiring minimum number to reconstruct
 # write each member's messages for each group into files like: "zz995522xx--1-123.otp" with five letter groups.
 
 # we also want a list of recipients so that we can generate mrssage files for each
 
 def do_splitMsg( inputFilename, minparts, maxparts, prefix ):
-    global keepKeyFilesAfterUse
     minparts = int( minparts )
     maxparts = int( maxparts )
     
@@ -1416,12 +1355,15 @@ def do_splitMsg( inputFilename, minparts, maxparts, prefix ):
         wipeFile( inputFilename )
 
 
+
 # merge messages split from above
 
 def do_mergeMsg( outputFilename, filesTbl ):
 
-    fileText = stringDigits( readFile( filesTbl[0] ) )
-    fileLen = len( fileText )
+    dbg( filesTbl )
+
+    fileText = readFile( filesTbl[0] )
+    fileLen = len( stringDigits( fileText ) )
     clearText = '0' * fileLen
 
     if len(clearText) < 1:
@@ -1431,12 +1373,12 @@ def do_mergeMsg( outputFilename, filesTbl ):
         filename = filesTbl[i]
 
         tmpText = stringDigits( readFile( filename ) )
-       
+
         if len(tmpText) != len(clearText):
-            die( 'message length of file: ' + filename + ' does not match.' ) 
+            die( 'message length of file: ' + filename + ' does not match.' )
         clearText = stringAdd( clearText, tmpText )
-    
-    plainText = decode( clearText )    
+
+    plainText = decode( clearText )
     writeFile( outputFilename, plainText )
 
     wipeKeys( filesTbl )
@@ -1465,7 +1407,7 @@ def do_combineStreams( inputFile1, inputFile2, combinedFile, keyPrefix ):
         pageCount = digitsNeeded // SHEETSIZE
 
         for x in range( 0, pageCount ):
-            fn = keyPrefix + '-' + str( "{:02d}".format(x+1) ) + '.otk'
+            fn = keyPrefix + '-' + str( "{:02d}".format(x) ) + '.otk'
             s = tmp3[ (x*SHEETSIZE) :  ((x + 1) * SHEETSIZE) ]
             writeFile( fn, codeGroups( s ) )
 
@@ -1493,7 +1435,11 @@ def fileSize( fn ):
 def wipeFile( fn ):
     global testingMode
     global wipeRoundCount
-    
+
+    if fn == 'EDITOR':
+        dbg( 'NOTE: wipeFile() skipped for EDITOR (no file on disk).' )
+        return
+
     if testingMode:
         dbg('TESTING MODE: wipeFile( ' + fn + ') not executed.' )
         return
@@ -1505,7 +1451,7 @@ def wipeFile( fn ):
 
     fs = fileSize( fn )
 
-    for _ in range( wipeRoundCount):
+    for r in range( wipeRoundCount):
         # all ones
         # all zeroes
         # all hex
@@ -1581,7 +1527,7 @@ def process_args():
         '-c':None,  # cipher text file
         '-i':None,  # input file
         '-a':None,  # another input file
-        '-k':None,  # keep key files after use
+        '-k':None,  # INVALID OPTION!
         '-y':None,  # key file or prefix
         '-l':None,  # least/min parameter
         '-n':None,  # entropyGatheringSleepTime  - delay between random data block gathering
@@ -1593,23 +1539,9 @@ def process_args():
         'extra':extra_args, # all others are placed here
     }
      
-    argv_x = sys.argv
-    argv = []
-
-    # expand wildcarded parameters
-    for a in argv_x:
-        gg = glob( a )
-        # if not recognised as a file name, just toss it in
-        if len(gg) == 0:
-            gg.append(a)
-        
-        # sort individual wildcarded  parameter - important for keys, etc.
-        gg.sort()
-        for g in gg:
-            # dbg( g )
-            argv.append( g )
-    
-    argc = len(argv)    
+    args = {}
+    argv = sys.argv
+    argc = len(argv)
     
     if argc == 1:
         do_brief_help()
@@ -1626,7 +1558,7 @@ def process_args():
             useMorseShorts = True
         elif a == "-t":
             testingMode = True
-        elif a == '-q': # process random duplicates
+        elif a == '-q': # process ranom duplicates
             x+=1
             if x < argc:
                 tmp = int(argv[x])
@@ -1726,6 +1658,8 @@ def otp_main():
 
 def main():
     otp_main()
+# main()
     
 if __name__ == '__main__':
     main()
+
