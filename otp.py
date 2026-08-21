@@ -13,45 +13,31 @@ import time
 from itertools import combinations
 import pytextedit
 
-''' "SILENT DUCK", aka "SD", automates a TRIGON type one time pad "OTP" manual
-procedure, updated slightly for modern use. It has been developed to illustrate
-the methodology, and has deliberately not been optimised.
+'''SILENT DUCK (SD) encrypts messages with the manual one time pad (OTP) procedure used by the CIA to communicate privately with their Russian agents in the mid-1970s, who would perform this same procedure using pencil and paper.
 
-OTP is useful where keys for every possible future mesage can be generated ahead of time before being faced with an immanentt communications threat.
+It allows switching between Roman and Cyrillic alphabets, including numeric digits and some punctuation characters.
 
+This same methodology has been in use by other countries' for their own similar communications.
 
-Bruce Schnenier summarised OTP at:
+OTP has traditionally been useful where enough keys for the maximum number of future mesages can be generated and shared ahead of time before being faced with a communications threat.
+
+Prominent computer cryptographer Bruce Schneier summarised OTP in one of his blog posts at:
 https://www.schneier.com/crypto-gram/archives/2002/1015.html#7
 
-"One-Time Pads
-It's a meme that never seems to go away. Every time I write about this cryptanalytic result, or the insecurity of that system, someone starts crowing about one-time pads. "Every other cryptographic algorithm is based on some assumption, and one-time pads are the only provably secure system," they say. "They're the only safe algorithm," they say. "They're the future," they say.
+He ended his post as follows:
+"One-time pads may be theoretically secure, but they are not secure in a practical sense. They replace a cryptographic problem that we know a lot about solving -- how to design secure algorithms -- with an implementation problem we have very little hope of solving. They're not the future. And you should look at anyone who says otherwise with deep and profound suspicion."
 
-Well, they're wrong. And step, by step, I will explain why. (Parts of this essay are taken from my book "Secrets and Lies.")
+This author will not argue with him.
 
-One-time pads are the simplest of all algorithms, and were invented early on in the 20th century. The basic idea is that you have a pad of paper with a bunch of randomly chosen key letters, the same size as the message, on it. You add one key letter to each plaintext letter, and never repeat the key letters. (That's the "one-time" part.) For example, assume the message is IT and the pad letters are CM. You add I (9) to C (3) to get L (12), or T (20) to M (13) to get G (7). (20 + 13 = 7 mod 26.) Then you burn the paper afterwards. The receiver reverses the process using his pad of paper, and then burns the key letters when he's done. This system works with any alphabet, including a binary one.
+OTP offers interesting freedoms of communication.
 
-One-time pads are the only provably secure cryptosystem. Because the key is the same size as the plaintext, every possible plaintext is equally likely. With different keys, the ciphertext DKHS could decrypt to SELL, STOP, BLUE, or WFSH. With a normal algorithm, such as DES or AES or even RSA, you can tell which key is correct because only one key can produce a reasonable plaintext. (Formally, the message size needed is called the "unicity distance." It's about 19 ASCII bytes for an English message encrypted with a cipher with a 128-bit block. With a one-time pad, the unicity distance approaches infinity and it becomes impossible to recognize plaintext. This is the security proof.) Because a one-time pad's key is the same size as the message, it's impossible to tell when you have the correct decryption.
+This includes repudiation of messages (the ability to not be authoritatively quoted), as any OTP encrypted message can be "decrypted" to any other text, thus rendering any quotes as technically heresay.
 
-This is the only provably secure cryptosystem we know of.
+In some ways, OTP is future proof and liberates the user from any communication technology more advanced than pen and paper. Unlike other cryptographic processing tools, OTP does not need to be a controlled item kept under lock and key.
 
-It's also pretty much useless. Because the key has to be as long as the message, it doesn't solve the security problem. One way to look at encryption is that it takes very long secrets -- the message -- and turns them into very short secrets: the key. With a one-time pad, you haven't shrunk the secret any. It's just as hard to courier the pad to the recipient as it is to courier the message itself. Modern cryptography encrypts large things -- Internet connections, digital audio and video, telephone conversations, etc. -- and dealing with one-time pads for those applications is just impracticable.
+SILENT DUCK (SD) allows enthusiasts to dabble with an essential element of spycraft in the comfort of their own home, but without having to sign the Official Secrets Act (OSA) or the Espionage Act, and without having to be a trained spy.
 
-If you think you know how to do key management, but you don't have much confidence in your ability to design good ciphers, a one-time pad might make sense. We're in precisely the opposite situation, however: we have a hard time getting the key management right (partly because most applications won't really support couriers with briefcases handcuffed to their wrists, Marines with rifles guarding the room with the encryption equipment in it, or thermite charges available for physically destroying storage media before the bad guys get past the Marines with rifles guarding the encryption equipment), but we're pretty confident in our ability to build reasonably strong algorithms. It's just not the weak point in our systems.
-
-What a one-time pad system does is take a difficult message security problem -- that's why you need encryption in the first place -- and turn it into a just-as-difficult key distribution problem. It's a "solution" that doesn't scale well, doesn't lend itself to mass-market distribution, is singularly ill-suited to computer networks, and just plain doesn't work.
-
-The exceptions to this are generally in specialized situations where simple key management is a solvable problem and the security requirement is timeshifting. In these situations, the problem isn't transporting the bits securely, but transporting the bits securely at the time the message is generated. Securing the bits beforehand is easy. And there are historical examples of one-time pads being used successfully, in specialized circumstances. Russian spies used pencil and paper one-time pads to communicate. (The NSA broke the system because the Russians reused the same one-time pads. Oops.) An early Teletype hotline between Washington and Moscow was encrypted using a one-time pad system. One-time pads were also used successfully in WWII by the English; spies in locations with radios but no other encoding equipment were given pads printed on silk, and were able to encode messages for transmission faster and more securely than by previous methods involving memorized poetry.
-
-Those examples used real one-time pads. Generally, products that claim to use a one-time pad actually don't. My guess is that the engineers quickly realize that they can't possibly implement a one-time pad, so they use the output of a stream cipher and call that a one-time-pad generator, or a virtual one-time pad, or almost a one-time pad, or some other marketing-speak. It's not a one-time pad. The security proof completely fails when you use a stream cipher.
-
-On the other hand, if you ever find a product that actually uses a one-time pad, it is almost certainly unusable and/or insecure.
-
-So, let me summarize. One-time pads are useless for all but very specialized applications, primarily historical and non-computer. And almost any system that uses a one-time pad is insecure. It will claim to use a one-time pad, but actually use a two-time pad (oops). Or it will claim to use a one-time pad, but actually use a stream cipher. Or it will use a one-time pad, but won't deal with message re-synchronization and re-transmission attacks. Or it will ignore message authentication, and be susceptible to bit-flipping attacks and the like. Or it will fall prey to keystream reuse attacks. Etc., etc., etc.
-
-One-time pads may be theoretically secure, but they are not secure in a practical sense. They replace a cryptographic problem that we know a lot about solving -- how to design secure algorithms -- with an implementation problem we have very little hope of solving. They're not the future. And you should look at anyone who says otherwise with deep and profound suspicion."
-
-
-'''
+Please enjoy trying it out. You will find a few fun surprises along the way not explored in detail elsewhere. And if you do happen to be a spy for the CIA, who knows, you may find it useful.'''
 
 versionStr = 'v0.8f'
 
@@ -59,6 +45,11 @@ versionStr = 'v0.8f'
 useMorseShorts = False
 keepKeyFilesAfterUse = False
 wipeRoundCount = 7
+
+# when False (default/strict), encode() requires an explicit '#' digit-shift
+# code around runs of digits and dies if one is missing. Set True to have
+# encode() insert the missing '#' automatically instead of dying.
+autoInsertDigitShiftCode = False
 
 testingMode = False # inhibit changes to file system, no CUD (-R).
 
@@ -73,7 +64,7 @@ levels quicker, lumping the higher entropy consumption towards the start of the
 generated key stream.  If doing lots of key generation, will deplete the entropy
 quicker, so can set to a higher number.
 
-Also, because it can slow down keye generation appreciably, it feels like there
+Also, because it can slow down key generation appreciably, it feels like there
 is more "compute" going on, and might impart more feelings of trust to results.
 
 Feel free to ignore, since we have the key / code combine capability built-in. 
@@ -305,8 +296,10 @@ number2latletterTbl = {
     '70':'B', '71':'C', '72':'G', '73':'D', '74':'F',
     '75':'H', '76':'J', '77':'K', '78':'L', '79':'M',
     '80':'P', '81':'Q', '82':'S', '83':'U', '84':'V',
-    '85':'W', '86':'X', '87':'Y', '88':'Z', '89':'', 
-    # 89 raw code char, followed by digit count of four digits
+    '85':'W', '86':'X', '87':'Y', '88':'Z',
+    # 89 reserved / unassigned (was going to be a raw code char, followed by
+    # digit count of four digits, but that was never implemented -- leave
+    # unmapped so decode() reports it instead of silently dropping it)
     '90':'?', '91':':', '92':'@', '93':'/',
 
     # 94 11 22 33 94 = '123'
@@ -341,9 +334,6 @@ number2cyrletterTbl = {
     '99':'~'  # tilde is our cyr lat shift code
 }
 
-# holds both
-letter2numberTbl = {}
-
 def tblSetup():
     for x in number2latletterTbl:
         ch = number2latletterTbl[x]
@@ -352,12 +342,6 @@ def tblSetup():
     for x in number2cyrletterTbl:
         ch = number2cyrletterTbl[x]
         cyrletter2numberTbl[ ch ] = x
-
-    for x in latletter2numberTbl:
-        letter2numberTbl[ x ] =  latletter2numberTbl[ x ]
-
-    for x in cyrletter2numberTbl:
-        letter2numberTbl[ x ] =  cyrletter2numberTbl[ x ]
 
 
 def codeGroups( s, groupSize=DIGITSPERGROUP, groupsPerLine=GROUPSPERLINE, linesPerPad=LINESPERPAGE ):
@@ -506,7 +490,7 @@ def encode( strIn ):
 
     if not stringValid( s ):
         dbg( 'invalid characters in string: ' + s )
-        return ''
+        die( 'invalid characters in string: ' + s )
     x=0
     
     while x < lenS:
@@ -526,31 +510,39 @@ def encode( strIn ):
         elif ch.isdigit():
             # process digits
             if not usingDigits:
-                # could comment out next line to add "#" automatically:
-                die( 'missing digit code "#" at start of number sequence.' )
-                usingDigits = True
-                tmp += digit_code # '94'
+                if autoInsertDigitShiftCode:
+                    usingDigits = True
+                    tmp += digit_code # '94'
+                else:
+                    die( 'missing digit code "#" at start of number sequence.' )
             tmp += ch+ch
         else:
             # process all else
             if usingDigits:
-                die( 'Missing "#" code to end number sequence.' )
-                usingDigits = False
-                tmp += digit_code
+                if autoInsertDigitShiftCode:
+                    usingDigits = False
+                    tmp += digit_code
+                else:
+                    die( 'Missing "#" code to end number sequence.' )
 
             try:
                 tmp += currentletter2numberTbl[ ch ]
             except:
-                dbg( currentletter2numberTbl )
-                die( 'Letter "' + ch + '", code: ' + str(ord(ch)) + ', not in this alphabet - missing "~" ?' )
+                # NOTE: don't dbg()/print the lookup table itself here -- it can
+                # contain Cyrillic characters, and printing those on a console
+                # whose codepage can't represent them (e.g. Windows cp1252)
+                # raises UnicodeEncodeError, masking the real error below.
+                alphabetName = 'Roman' if usingRoman else 'Cyrillic'
+                die( 'Letter "' + ch + '", code: ' + str(ord(ch)) + ', not in the ' + alphabetName + ' alphabet - missing "~" ?' )
     
         x += 1
     # end of while
     
     if usingDigits:
-        # comment out next line to add final "#" automatically.
-        die( 'Missing final "#" code to end number sequence.' )
-        tmp += '94'
+        if autoInsertDigitShiftCode:
+            tmp += '94'
+        else:
+            die( 'Missing final "#" code to end number sequence.' )
 
     if usingRoman == False:
         # this lets us concatenate multiple messages regardless of alphabet used
@@ -613,7 +605,10 @@ def decode( strIn ):
             else:
                 number2letterTbl = number2cyrletterTbl
         else:
-            ch = number2letterTbl[ code ]
+            try:
+                ch = number2letterTbl[ code ]
+            except KeyError:
+                die( 'code "' + code + '" is not assigned to any letter in this alphabet: ' + strIn )
             tmp += ch
 
         x += 1
@@ -1447,7 +1442,12 @@ def wipeFile( fn ):
         return
 
     try:
-        fd = os.open( fn, os.O_RDWR )
+        # os.O_BINARY only exists on Windows; without it, os.write() there
+        # runs through the CRT's text-mode translation, which rewrites any
+        # 0x0A byte in our fill patterns into a 0x0D 0x0A pair on disk --
+        # silently writing more bytes than intended. getattr(...) keeps
+        # this a no-op on POSIX, where O_BINARY doesn't exist.
+        fd = os.open( fn, os.O_RDWR | getattr( os, 'O_BINARY', 0 ) )
     except:
         die( '\nERROR: opening file: ' + str( fn )  )
 
@@ -1459,9 +1459,12 @@ def wipeFile( fn ):
         # all hex
         # then zeros again
         
-        for ch in ['\xff', '\x00', '\x11', '\x22', '\x33', '\x44', '\x55', '\x66', '\x77', '\x88', '\x99', '\xaa', '\xbb', '\xcc', '\xdd', '\xee', '\xff', '\x00']:
-            s = ch * fs
-            os.write( fd, bytes(s, 'utf-8' ))
+        for byteVal in [0xff, 0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff, 0x00]:
+            # build the fill as raw bytes directly -- encoding a '\x80'-'\xff'
+            # str through utf-8 would emit a 2-byte sequence per character,
+            # writing 2x the file's length instead of a single repeated byte.
+            s = bytes( [byteVal] ) * fs
+            os.write( fd, s )
 
             # more feel good coding - could verify if does
             os.fsync( fd ) # this may be the requested one
@@ -1529,7 +1532,6 @@ def process_args():
         '-c':None,  # cipher text file
         '-i':None,  # input file
         '-a':None,  # another input file
-        '-k':None,  # INVALID OPTION!
         '-y':None,  # key file or prefix
         '-l':None,  # least/min parameter
         '-n':None,  # entropyGatheringSleepTime  - delay between random data block gathering
@@ -1579,7 +1581,7 @@ def process_args():
             if tmp > -1:
                 wipeRoundCount = tmp
             else:
-                die( "parameter for '-r' must be greater than zero." )
+                die( "parameter for '-r' must not be negative." )
         elif a == '-n': # entropy gathering sleep time
             x+=1
             if x < argc:
@@ -1589,7 +1591,7 @@ def process_args():
             if tmp > -1:
                 entropyGatheringSleepTime = tmp
             else:
-                die( "parameter for '-n' must be greater than zero." )
+                die( "parameter for '-n' must not be negative." )
 
         elif (a in cmd_args):
             cmd_args[a] = True
@@ -1611,11 +1613,14 @@ def otp_main():
     init()
 
     cmd_args = args[0]
-    
+    commandFound = False
+
     for c in cmd_args:
         if cmd_args[c] == False:
             continue
-        
+
+        commandFound = True
+
         if c == '-v':
             do_version()
             
@@ -1657,6 +1662,13 @@ def otp_main():
         # they all stop here - one command per run
         break
 
+    if not commandFound:
+        # -t/-k/-z/-q/-r/-n etc. are modifiers, not commands on their own --
+        # process_args() applies them directly to globals and never marks
+        # them True in cmd_args, so without a real command (-e, -d, -g, ...)
+        # this loop would otherwise exit having silently done nothing.
+        dbg( 'No command given -- nothing to do. Pass -h for usage.' )
+
 
 def main():
     otp_main()
@@ -1664,4 +1676,3 @@ def main():
     
 if __name__ == '__main__':
     main()
-
