@@ -1,9 +1,6 @@
 # SilentDuck
 
 
-!!! P L E A S E  D O   N O T   D I S T R I B U T E !!!
-
-
 Title:
 ------
 
