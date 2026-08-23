@@ -192,8 +192,7 @@ The message type codes are used as follows:
 Example summary of SILENT DUCK (SD) commands:
 ---------------------------------------------
 
-# Note: Comments prefixed by pound character "#" to make it easier to paste examples into the command line
-
+```bash
 # print out version number
 otp -v
 
@@ -250,3 +249,4 @@ otp -b -i input1.otk -a input2.otk -c combined -y keyPrefix
 
 # wipe files
 otp -w splitA/* keys/* *.ot? *.txt
+```
