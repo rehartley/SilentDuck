@@ -12,7 +12,9 @@ Introduction:
 
 This app automates a manual one time pad (OTP) encryption procedure field tested as far back as the 1970s and likely earlier. It has been publicly disclosed since early 1977.
 
-SILENT DUCK (SD) is the name of the app, and is not the term used by the creators of this procedure.  SD automates manual one time pad (OTP) encryption of text, digits and some punctuation characters.  
+SILENT DUCK (SD) is the name of the app, and is not the term used by the creators of this procedure.  SD automates manual one time pad (OTP) encryption of text, digits and some punctuation characters.
+
+Although usable for encrypting messages, this app focuses on exercising various features particular to one time pad systems.
 
 WARNING:
 1) This app will automatically wipe and delete input files for each command.
@@ -75,7 +77,36 @@ A typical page might start like this:
 95428 50476 06584 38399 37155 75549 11968 12962
 43041 83175 29737 88523 76769 29465 47144 75691
 77230 19601 57378 51440 48030 63857 15846 37829
-...
+32548 48508 71999 22399 86499 22365 91365 74317
+57311 83798 06280 74855 58916 46616 07784 57382
+10464 00582 08702 30607 80017 50120 76361 88759
+93610 38382 57828 27710 00947 00977 02927 89429
+53217 20255 20839 63759 74408 60213 32159 73481
+31617 14857 97505 25301 14258 36792 42161 05427
+52190 32626 07392 88180 32382 22884 82072 81263
+39585 92345 44974 09467 88114 50678 84634 02982
+44347 73204 49702 60171 56691 11969 32188 62818
+06460 37447 02998 93679 05391 96625 21874 88256
+85784 28585 57163 61054 85038 41729 76885 51723
+12105 61287 69331 72620 98079 56863 59622 96951
+94389 88086 36174 39492 54706 56234 49308 07472
+79967 13807 72543 07594 89680 63806 18102 32416
+65413 91747 01977 31100 62600 78129 31020 07515
+09685 11575 35283 37365 15236 28014 82731 07629
+35772 51501 01308 09111 40637 41959 81825 82217
+69421 13874 28982 52087 95908 43908 06689 55318
+64308 31000 08437 64768 79907 58033 78288 44541
+39151 31450 44942 53264 04459 19196 33063 68732
+57000 78066 10301 31438 87160 08879 10617 39947
+41192 47297 79960 45748 24756 60210 83200 78918
+91761 48988 10844 64704 86812 61530 69324 30482
+03174 79631 96669 88017 31989 32177 73058 80287
+94449 59824 50666 22217 36665 78788 88951 51139
+92675 67604 01497 28710 65505 37546 76036 64619
+84157 68553 92307 42962 21660 78980 52154 40531
+57646 07563 92053 84974 34262 59764 68318 44568
+65986 82656 13413 64402 77821 46528 50300 34720
+43525 90572 90038 01483 75550 94795 48699 55418
 ```
 
 As messages are encrypted, the page with the keys used to encrypt them is destroyed to avoid discovery. The pads should be hidden securely while not in use, and ought to have some evidence of being tampered with such as perforation and wax/glue seals, colour shifting or fading inks that activate when exposed to water, heat, air or light, etc.
@@ -197,19 +228,17 @@ Recovered:    00000 75178 78496 98998 08127 11695 99
 
 The recovered digits begin with the "00000" check group again and decode back to "HELLO, ~ПРИВЕТ.~". Mathematically the error is not wrong, but procedurally it can lead to confusion if the receiver does not realise how easy it is to recover.
 
-
-
 Message formats
 ---------------
 
-Messages are usually composed of fields as follows:
-1 - one digit message type code (0=Null (Nothing to send), 1=normal, 2=retransmission, 3=test, 4=key generation, 5=key compromise, 6=special announcement, 7=relay, 8=bulk data, 9=super-encrypted message)
-2 - one digit region code (0=Any, 1=EU, 2=ME, 3=AF, 4=SEA, 5=NA, 6=SA, 7=AU/NZ, 8=RU, 9=CN)
-3 - the recipient's three digit station code
-4 - three digit code count
-5 - five digit key identifier
-6 - five digit code groups
-7 - 00000 sent three times to end transmission
+As shared on some number station web sites, messages may be composed of fields that will vary depending on the sender, with examples such as:
+ 1) one digit message type code (0=Null (Nothing to send), 1=normal, 2=retransmission, 3=test, 4=key generation, 5=key compromise, 6=special announcement, 7=relay, 8=bulk data, 9=super-encrypted message)
+ 2) one digit region code (0=Any, 1=EU, 2=ME, 3=AF, 4=SEA, 5=NA, 6=SA, 7=AU/NZ, 8=RU, 9=CN)
+ 3) the recipient's three digit station code
+ 4) three digit code count
+ 5) five digit key identifier
+ 6) five digit code groups
+ 7) 00000 sent three times to end transmission
 
 The message type codes are used as follows:
 0) The one way broadcast has no message for this transmission
