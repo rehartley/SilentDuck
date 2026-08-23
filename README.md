@@ -226,7 +226,7 @@ Random key: - 24765 93659 55146 09380 18882 67898 69
 Recovered:    00000 75178 78496 98998 08127 11695 99
 ```
 
-The recovered digits begin with the "00000" check group again and decode back to "HELLO, ~ПРИВЕТ.~". Mathematically the error is not wrong, but procedurally it can lead to confusion if the receiver does not realise how easy it is to recover.
+The recovered digits begin with the "00000" check group again and decode back to "HELLO, ПРИВЕТ." Mathematically the error is not wrong, but procedurally it can lead to confusion if the receiver does not realise how easy it is to recover.
 
 Message formats
 ---------------
