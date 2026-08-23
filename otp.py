@@ -344,6 +344,39 @@ def tblSetup():
         cyrletter2numberTbl[ ch ] = x
 
 
+# scan a string and insert the '~' alphabet-switch code wherever the
+# alphabet in use needs to change, so callers don't have to hand-annotate
+# every switch themselves -- "HELLO, ПРИВЕТ." works the same as
+# "HELLO, ~ПРИВЕТ~.", including a leading switch if the message doesn't
+# open in the Roman alphabet. Characters shared by both alphabets (digits,
+# space, newline, punctuation, '#') never force a switch; an explicit '~'
+# already present is tracked rather than duplicated, so already-annotated
+# messages are unaffected.
+def insertAlphabetSwitches( s ):
+    tmp = ''
+    usingRoman = True
+
+    for ch in s:
+        if ch == '~':
+            usingRoman = (usingRoman == False)
+            tmp += ch
+            continue
+
+        inLat = ch in latletter2numberTbl
+        inCyr = ch in cyrletter2numberTbl
+
+        if inLat and not inCyr and not usingRoman:
+            tmp += '~'
+            usingRoman = True
+        elif inCyr and not inLat and usingRoman:
+            tmp += '~'
+            usingRoman = False
+
+        tmp += ch
+
+    return tmp
+
+
 def codeGroups( s, groupSize=DIGITSPERGROUP, groupsPerLine=GROUPSPERLINE, linesPerPad=LINESPERPAGE ):
     tmp = ''
 
@@ -484,13 +517,16 @@ def encode( strIn ):
     usingDigits = False
     s = strIn.upper()
     tmp = ''
-    lenS = len( s )
 
     currentletter2numberTbl = latletter2numberTbl
 
     if not stringValid( s ):
         dbg( 'invalid characters in string: ' + s )
         die( 'invalid characters in string: ' + s )
+
+    s = insertAlphabetSwitches( s )
+    lenS = len( s )
+
     x=0
     
     while x < lenS:
@@ -597,8 +633,11 @@ def decode( strIn ):
             tmp += '#'
 
         elif code == '99':
-            # swap alphabets
-            tmp += '~' # optional?
+            # swap alphabets -- '~' is a control code, not part of the
+            # message, so it's tracked here but not written to the output;
+            # this mirrors encode()'s insertAlphabetSwitches() on the way
+            # in, so decoded text comes back clean without the caller
+            # having had to type the switches themselves.
             usingRoman = (usingRoman == False)
             if usingRoman:
                 number2letterTbl = number2latletterTbl
@@ -1671,6 +1710,12 @@ def otp_main():
 
 
 def main():
+    cmd1 = 'otp -k -e -i message001.txt -o message001.otk Trianon-Cypher0001.otk'
+    cmd2 = 'otp -k -d -i message001.otk -o message001X.txt Trianon-Cypher0001.otk'
+    cmd = cmd2
+
+    sys.argv = cmd.split(' ')
+
     otp_main()
 # main()
     
