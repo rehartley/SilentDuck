@@ -16,6 +16,10 @@ SILENT DUCK (SD) is the name of the app, and is not the term used by the creator
 
 Although usable for encrypting messages, this app focuses on exercising various features particular to one time pad systems.
 
+In addition to reading and writing normal files, you can use a builtin full screen text editor (just like it was 1985 again!) by specifying "EDITOR" as the file name to keep it in memory. Some caveats must apply, such as putting a laptop into hibernation will write all memory to storage, as does squeezing memory onto swap space, etc.
+
+Although this app is written in Python, it has a buildit.bat script to turn it into a single .EXE file if that makes deployments easier for you.
+
 WARNING:
 1) This app will automatically wipe and delete input files for each command.
 2) Using the "-k" flag inhibits this auto-wipe and delete behaviour
