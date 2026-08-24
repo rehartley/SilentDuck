@@ -787,7 +787,7 @@ otp -z ...
 # -t option: turn on testing mode to inhibit modifying the file system (no write, delete, etc.)
 otp -t ...
 
-# -k keep key files after use
+# -k keep key files and input file after use (no auto-destruction)
 otp -k .....
 
 # -n throttle entropy consumption sleeping for 'n' seconds after every 25 digits.
@@ -803,15 +803,15 @@ otp -r 3 .....
 otp -q 3 ....
 
 # -g generate key files
-# provide filename prefix for the 25 pages with page number appended, ex: keys/XX123-01.otk
+# provide filename prefix for the 25 pages with page number appended, ex: keys/XX123-001.otk
 otp -g -y keys/XX123
 
 # -e encipher file
-otp -e -i inputfile.txt -o outputfile.otp keys/XX123-01.otk
+otp -e -i inputfile.txt -o outputfile.otp keys/XX123-001.otk
 # same but specifying keys 5,6,7 (Linux/OSX/Android):
-otp -e -i inputfile.txt -o outputfile.otp keys/XX123-0[5,6,7].otk
+otp -e -i inputfile.txt -o outputfile.otp keys/XX123-00[5,6,7].otk
 # type the plaintext on screen instead of reading a file:
-otp -e -i EDITOR -o outputfile.otp keys/XX123-01.otk
+otp -e -i EDITOR -o outputfile.otp keys/XX123-001.otk
 
 # -d decipher file
 # (keys work same as above)
@@ -1188,7 +1188,7 @@ def do_joinKeys( file_i, file_j, combinedKeyFile, prefix ):
         for j in range(10):
             tmpStr+=newRandomKey[ (i*10) + j]
 
-        filename = prefix + '{:02}'.format( i+1 ) + '.otk'
+        filename = prefix + '-' + '{:03d}'.format( i+1 ) + '.otk'
 
         writeFile(filename, codeGroups( tmpStr ) )
 
@@ -1290,7 +1290,7 @@ def do_unjoinKeys( file_i, file_j, combinedKeyFile, prefix ):
     # write out the random table of keys in the clear to the prefix local
    
     for i in range( 25 ):
-        filename = prefix + '{:02}'.format( i+1 ) + '.otk'
+        filename = prefix + '-' + '{:03d}'.format( i+1 ) + '.otk'
         x = i * 250
         
         tmpStr = newOtpStr[x:x+250]

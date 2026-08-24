@@ -282,13 +282,13 @@ otp -r 3 .....
 # this slows down the process, and may deplete the entropy pool.  Useful for large key generation jobs that would deplete the entropy pool quickly anyways.
 otp -q 3 ....
 
-# generate key files, passing in a prefix for each of the 25 pages that will have the page number appended to it, ex: keys/XX123-01.otk
+# generate key files, passing in a prefix for each of the 25 pages that will have the page number appended to it, ex: keys/XX123-001.otk
 otp -g -y keys/XX123
 
 # encipher file 
-otp -e -i inputfile.txt -o outputfile.otp keys/XX123-01.otk
+otp -e -i inputfile.txt -o outputfile.otp keys/XX123-001.otk
 # same but specifying keys 5,6,7 (Linux/OSX/Android):
-otp -e -i inputfile.txt -o outputfile.otp keys/XX123-0[5,6,7].otk
+otp -e -i inputfile.txt -o outputfile.otp keys/XX123-00[5,6,7].otk
 
 # decipher file (keys work same as above)
 otp -d -i outputfile.otp -o cleartext.txt keys/XX123*.otk
