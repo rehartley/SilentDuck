@@ -37,9 +37,9 @@ In some ways, OTP is future proof and liberates the user from any communication 
 
 SILENT DUCK (SD) allows enthusiasts to dabble with an essential element of spycraft in the comfort of their own home, but without having to sign the Official Secrets Act (OSA) or the Espionage Act, and without having to be a trained spy.
 
-Please enjoy trying it out. You will find a few fun surprises along the way not explored in detail elsewhere. And if you do happen to be a spy for the CIA, who knows, you may find it useful.'''
+Please enjoy trying it out. You will find a few fun surprises along the way not explored in detail elsewhere. And if you do happen to be a wannabe spy, who knows, you may find it useful.'''
 
-versionStr = 'v0.8f'
+versionStr = 'v0.9g'
 
 # globals
 useMorseShorts = False
@@ -448,16 +448,32 @@ def randDigit():
     while (tmp>9):
         tmp = ord( os.urandom(1) )
         if tmp < 250:
+            # keep 0..249, discard 250..255 to avoid bias
             tmp = tmp % 10
     return str(tmp)
 
+# Invoke the above to create a string of digits with length 'dc',
+# with no repeated digits (1/9 notwitstanding).
+# This is a psychological ploy to avoid the perception of a repeating
+# pattern in the digits, hopefully instilling more trust. If there
+# were a repeating pattern, it could be an anxiety causing clue to the
+# user that the digits were not truly random, and that the user should
+# not trust them, even if they were. This also signals to adversaries
+# that any apparent pattern could never be clear text shining through,
+# but only an artifact of randomness.  Trust in the process adds more
+# than the 10% or 11% entropy loss of not allowing repeated digits,
+# and is worth the tradeoff.  We hope.
 
-# invoke the above to create a string of digits with length 'dc'
 def getRandDigits( dc ):
     tmp = ''
+    the_digit = randDigit()
+    old_digit = randDigit()
 
     for x in range( dc ):
-        tmp += randDigit()
+        while the_digit == old_digit:
+            the_digit = randDigit()
+        old_digit = the_digit
+        tmp += the_digit
     return tmp
 
 # invoke the above a certain number of times, adding the strings of numbers
@@ -1045,27 +1061,19 @@ random keypad sheets
   process:
     take our last two otp sheets
     generate 252 combinations of five row sums (where each row has checksum appended to it)
-    concatenate the second to the first
+    merge the second to the first
     sort by checksum
     generate new random key
+    merge the key with the new random key to generate a new combined key
   
   Question: Do we need to use both double pads and checksum randomizing?
   
   Answer: Could get rid of the checksum randomizing, and keep two pad feature.
   One benefit of there being 252 combinations is that the last two rows of the
   first pad are now the first two rows of the second.  This means we avoid the
-  two pads being the simple sum of each other when 
-  
-  
-  
-  joined up.
+  two pads being the simple sum of each other when joined up.
 
-'''
-
-'''
-At this point have decided to make checksum randomizing optional. The main
-issue is that it is more difficult to do on pencil and paper, but will require
-experimentation to be sure.
+We enable the checksum randomizing option. The main issue is that it is more difficult to do on pencil and paper, but will require experimentation to be sure.
 
 It may be trivial compared to the 12600 (504 * 5 * 5) numeric additions to make
 the keypad combinations, plus 1500 more to add the two halves of the random key.
@@ -1075,7 +1083,7 @@ this bit of code using an offline computer or dedicated device.
 
 '''
 
-checkSumRandomizing = False
+checkSumRandomizing = True
 
 def do_joinKeys( file_i, file_j, combinedKeyFile, prefix ):
    
@@ -1128,9 +1136,14 @@ def do_joinKeys( file_i, file_j, combinedKeyFile, prefix ):
             # remove five digit checksum from string x
             x = x[:-5:]
 
-            # find next empty spot by avoiding hash/checksum collisions
+            # find next empty spot by avoiding hash/checksum collisions.
+            # wrap mod 100000 (take the rightmost 5 digits) instead of just
+            # adding 1, so checkSumString always stays exactly five digits --
+            # otherwise a collision chain crossing '99999' would overflow to
+            # a 6-digit string like '100000', which a plain string sort
+            # would misorder ahead of '99999'.
             while( checkSumString in keys ):
-                csNum = int(checkSumString)  + 1
+                csNum = ( int(checkSumString) + 1 ) % 100000
                 checkSumString = '{:05}'.format(csNum )
 
             # table of OTP keys indexed by checksum
@@ -1143,12 +1156,18 @@ def do_joinKeys( file_i, file_j, combinedKeyFile, prefix ):
 
     
     # retvalue is otp array combined with random data ordered by checksum
-   
+
     newOtpTbl = ''
     newRandomKey = {}
-   
-    # create random table 
-    for k in keys:
+
+    # process rows in checksum order, not insertion/combo5x10 order -- this is
+    # the actual security-relevant step: it's what breaks the fixed, public
+    # map from output-row position back to which of the 252 combo5x10 subsets
+    # produced it. Plain string sort, matching the checksum's on-paper form
+    # (a five-digit group, sorted the way you'd sort a stack of index cards).
+    # Both ends recompute this deterministically from P/Q, so no order
+    # information needs to travel with the ciphertext.
+    for k in sorted( keys ):
         rd = randDigits(25)
         newRandomKey[len(newRandomKey)] = rd
         # we subtract here because adding is easier to do by hand
@@ -1234,9 +1253,11 @@ def do_unjoinKeys( file_i, file_j, combinedKeyFile, prefix ):
             # remove the five digit checksum from the string x
             x = x[:-5:]
 
-            # to avoid hashing/ checksum collisions, we find the next empty spot
+            # to avoid hashing/ checksum collisions, we find the next empty
+            # spot. Must match the wraparound in do_joinKeys() exactly, or
+            # the two sides build different checksum orderings.
             while( checkSumString in keys ):
-                csNum = int(checkSumString) + 1
+                csNum = ( int(checkSumString) + 1 ) % 100000
                 checkSumString = '{:05}'.format(csNum )
 
             # now we have a table of OTP keys indexed by checksum
@@ -1246,11 +1267,14 @@ def do_unjoinKeys( file_i, file_j, combinedKeyFile, prefix ):
             #remove the five digit checksum from the string x
             keys[len(keys)] = x[:-5:]
     
-    # merge table into a single long string
+    # merge table into a single long string, in checksum order -- must match
+    # the sort do_joinKeys() applies when it builds newOtpTbl, or every row
+    # decrypts against the wrong random data. See the comment in
+    # do_joinKeys() for why this order matters cryptographically.
     keysTmp = ''
-    for x in keys:
+    for x in sorted( keys ):
         keysTmp += keys[x]
-    
+
     keys = keysTmp
     
     # At this point we have our keys setup ready to extract from our input message.
@@ -1708,14 +1732,7 @@ def otp_main():
         # this loop would otherwise exit having silently done nothing.
         dbg( 'No command given -- nothing to do. Pass -h for usage.' )
 
-
 def main():
-    cmd1 = 'otp -k -e -i message001.txt -o message001.otk Trianon-Cypher0001.otk'
-    cmd2 = 'otp -k -d -i message001.otk -o message001X.txt Trianon-Cypher0001.otk'
-    cmd = cmd2
-
-    sys.argv = cmd.split(' ')
-
     otp_main()
 # main()
     
