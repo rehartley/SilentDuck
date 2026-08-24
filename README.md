@@ -64,7 +64,7 @@ Before communication starts, a set of random numbers is generated for use as key
 
 In the historical one time pad, the series of numbers were arranged in five digit groups, eight groups to a line for forty lines to a page, and a single one time pad booklet might be around twenty pages long.  Size can vary among teams, but a commonly seen format is twenty five sheets of ten lines each holding five groups of five digits.
 
-A typical page might start like this:
+A typical page from the above link looks like this:
 
 ```
 24765 93659 55146 09380 18882 67898 69598 95436
