@@ -565,6 +565,9 @@ channel — using a combinatorial scheme (`combo5x10`: all 252 combinations
 of 5-of-10 rows) so that only the sum of the two sheets' contributions is
 ever exposed, never either sheet alone.
 
+Note: This features operates correctly, but the security of it still needs
+finish being assessed.
+
 ### SD command line
 ```bash
 otp -j -i key01.otk -a key02.otk -o combinedkey.otk -y keys/ZZ456
@@ -593,6 +596,9 @@ same two pre-shared sheets and the `combinedkey.otk` file received over the
 open channel, the recipient deterministically reconstructs the identical
 new keypad the sender generated — no coordination needed beyond both sides
 already holding the same two original sheets.
+
+Note: This features operates correctly, but the security of it still needs
+finish being assessed.
 
 ### SD command line
 ```bash
