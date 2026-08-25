@@ -182,7 +182,6 @@ T A U V 4 E 6 B D N
 The final message ready for transmission becomes:
 
 ```
-51413 85847 43852 09847 03813 32
 EA4AV DED4B 4VDEU TND4B TVDAV VU
 ```
 
