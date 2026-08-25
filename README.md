@@ -205,7 +205,7 @@ d)    75178 78496 98998 08127 11695 99
 e)     HE L  LO ,    ~П   РИ  ВЕТ .  ~
 ```
 
-The final result is: "HELLO, ~ ПРИВЕТ. ~", or "HELLO, ПРИВЕТ." when we remove the "~" change alphabet artifacts.
+The final result is: "H E L L O ,   ~  П Р И В Е Т .  ~ ", or "HELLO, ПРИВЕТ." when we remove the "~" change alphabet artifacts.
 
 
 Error Recovery:
