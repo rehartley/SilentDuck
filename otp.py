@@ -13,6 +13,20 @@ import time
 from itertools import combinations
 import pytextedit
 
+# Windows consoles (and PyInstaller-frozen exes running under them) often
+# attach a legacy codepage like cp1252 to stdout/stderr, which cannot
+# represent Cyrillic characters. Any print()/dbg() of Cyrillic text -- the
+# "-hh" help listing, or a decoded Cyrillic message -- would then raise
+# UnicodeEncodeError and crash the whole run instead of just printing wrong.
+# Reconfigure both streams to UTF-8 up front so output is consistent
+# regardless of the host codepage; errors='replace' means a genuinely
+# incapable terminal degrades unprintable characters to '?' instead of
+# crashing. hasattr guards both older stream types and --noconsole builds
+# where sys.stdout/stderr can be None.
+for _stream in (sys.stdout, sys.stderr):
+    if hasattr( _stream, 'reconfigure' ):
+        _stream.reconfigure( encoding='utf-8', errors='replace' )
+
 '''SILENT DUCK (SD) encrypts messages with the manual one time pad (OTP) procedure used by the CIA to communicate privately with their Russian agents in the mid-1970s, who would perform this same procedure using pencil and paper.
 
 It allows switching between Roman and Cyrillic alphabets, including numeric digits and some punctuation characters.
@@ -39,7 +53,7 @@ SILENT DUCK (SD) allows enthusiasts to dabble with an essential element of spycr
 
 Please enjoy trying it out. You will find a few fun surprises along the way not explored in detail elsewhere. And if you do happen to be a wannabe spy, who knows, you may find it useful.'''
 
-versionStr = 'v0.9g'
+versionStr = 'v0.9h'
 
 # globals
 useMorseShorts = False
@@ -693,6 +707,7 @@ def do_brief_help():
 -r set number of rounds for file wiping (writes 0, 1, random bits)
 -q specify number of times random data added to itself before return
 -g generate key files
+-gz generate all-zero key files (testing only -- NEVER use for a real message)
 -e encipher file, wiping input file and keys
 -d decipher file, wiping input file and keys
 -f generate key for previouly enciphered message based on known clear text
@@ -787,7 +802,7 @@ otp -z ...
 # -t option: turn on testing mode to inhibit modifying the file system (no write, delete, etc.)
 otp -t ...
 
-# -k keep key files and input file after use (no auto-destruction)
+# -k keep key files after use
 otp -k .....
 
 # -n throttle entropy consumption sleeping for 'n' seconds after every 25 digits.
@@ -803,15 +818,21 @@ otp -r 3 .....
 otp -q 3 ....
 
 # -g generate key files
-# provide filename prefix for the 25 pages with page number appended, ex: keys/XX123-001.otk
+# provide filename prefix for the 25 pages with page number appended, ex: keys/XX123-01.otk
 otp -g -y keys/XX123
 
+# -gz generate all-zero key files -- same as -g, but skips real randomness
+# and writes sheets of all zeros instead. Testing only: an all-zero key
+# provides no security at all (ciphertext comes out equal to plaintext).
+# NEVER use for a real message.
+otp -gz -y keys/XX123
+
 # -e encipher file
-otp -e -i inputfile.txt -o outputfile.otp keys/XX123-001.otk
+otp -e -i inputfile.txt -o outputfile.otp keys/XX123-01.otk
 # same but specifying keys 5,6,7 (Linux/OSX/Android):
-otp -e -i inputfile.txt -o outputfile.otp keys/XX123-00[5,6,7].otk
+otp -e -i inputfile.txt -o outputfile.otp keys/XX123-0[5,6,7].otk
 # type the plaintext on screen instead of reading a file:
-otp -e -i EDITOR -o outputfile.otp keys/XX123-001.otk
+otp -e -i EDITOR -o outputfile.otp keys/XX123-01.otk
 
 # -d decipher file
 # (keys work same as above)
@@ -844,34 +865,42 @@ otp -w splitA/* keys/* *.ot? *.txt
     die( helpStr )
 
 
-# generate keypad using a file prefix 
-def do_keygen( prefix ):
+# generate keypad using a file prefix. zeroKeys=True (the "-gz" command)
+# skips the random generation entirely and writes all-zero sheets instead --
+# NEVER for real messages (an all-zero key is no key at all, the ciphertext
+# comes out equal to the plaintext), only for testing the tool itself
+# (matches the otp_test/zero.otk fixture) where predictable, reviewable
+# output is more useful than real entropy.
+def do_keygen( prefix, zeroKeys=False ):
     if prefix is None:
         die( 'no key prefix given')
 
     global DIGITSPERGROUP # = 5
     global GROUPSPERLINE # = 10 # 5
     global LINESPERPAGE # = 50 # 10
-        
+
 
     global SHEETSIZE # = DIGITSPERGROUP * GROUPSPERLINE * LINESPERPAGE
 
     global PAGESPERPAD # = 100 # 25
     global PADSIZE # = SHEETSIZE * PAGESPERPAD
-    
+
     for x in range( 1, 1 + PAGESPERPAD ):
         fn = prefix + '-' + str( "{:03d}".format(x) ) + '.otk'
-        
-        '''
-        Lets hope there will be enough entropy inserted into the random
-        stream that the OS's PRNG will be sufficient.  We know we will
-        run out of entropy, hopefully where that happens will be random
-        enough, and overlayed / whitened enough by other data overlaid
-        on top of it.
-        '''
-        tmp = '0' * SHEETSIZE
-        for i in range( 1 + RANDOM_DUPLICATES ):
-            tmp = stringAdd( tmp, randDigits( SHEETSIZE ) )
+
+        if zeroKeys:
+            tmp = '0' * SHEETSIZE
+        else:
+            '''
+            Lets hope there will be enough entropy inserted into the random
+            stream that the OS's PRNG will be sufficient.  We know we will
+            run out of entropy, hopefully where that happens will be random
+            enough, and overlayed / whitened enough by other data overlaid
+            on top of it.
+            '''
+            tmp = '0' * SHEETSIZE
+            for i in range( 1 + RANDOM_DUPLICATES ):
+                tmp = stringAdd( tmp, randDigits( SHEETSIZE ) )
 
         writeFile( fn, codeGroups( tmp ) )
 
@@ -1188,7 +1217,7 @@ def do_joinKeys( file_i, file_j, combinedKeyFile, prefix ):
         for j in range(10):
             tmpStr+=newRandomKey[ (i*10) + j]
 
-        filename = prefix + '-' + '{:03d}'.format( i+1 ) + '.otk'
+        filename = prefix + '{:02}'.format( i+1 ) + '.otk'
 
         writeFile(filename, codeGroups( tmpStr ) )
 
@@ -1290,7 +1319,7 @@ def do_unjoinKeys( file_i, file_j, combinedKeyFile, prefix ):
     # write out the random table of keys in the clear to the prefix local
    
     for i in range( 25 ):
-        filename = prefix + '-' + '{:03d}'.format( i+1 ) + '.otk'
+        filename = prefix + '{:02}'.format( i+1 ) + '.otk'
         x = i * 250
         
         tmpStr = newOtpStr[x:x+250]
@@ -1570,6 +1599,7 @@ def process_args():
 
         '-f':False, # fake message with generated key
         '-g':False, # generate key
+        '-gz':False, # generate all-zero key (testing only, never for real use)
         
         '-k':False,  # keep key files after use (inverse of delete them) 
 
@@ -1704,7 +1734,10 @@ def otp_main():
             
         elif c == '-g':
             do_keygen( args[1]['-y'])
-            
+
+        elif c == '-gz':
+            do_keygen( args[1]['-y'], zeroKeys=True )
+
         elif c == '-j':
             do_joinKeys( args[1]['-i'], args[1]['-a'], args[1]['-o'], args[1]['-y'] )
         elif c == '-u':
