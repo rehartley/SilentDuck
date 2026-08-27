@@ -1,61 +1,48 @@
-# Work factor of a two-pad, sorted-combinatorial key-wrapping scheme for manual OTP re-keying
+# Work factor of recovering two one-time-pad sheets from a checksum-sorted combinatorial rekeying broadcast
 
 ## Background and goal
 
-I implemented a manual (pencil-and-paper) one-time-pad system of a mid 70s historically known type. A distinguishing feature is a scheme for renewing one-time-pad key material between two parties who already share a small amount of pre-distributed secret data, without meeting again in person, and without requiring a computer to execute (it must be doable by hand, digit-wise, in the field). I've done my own analysis below and would like it checked — I'd specifically like to know if there's an attack I'm missing, or if my security argument has a gap.
+*(Update: Sorry for the confusion - I realise my initial two versions of this post were somewhat unclear, based on the questions it prompted. This one should be much closer to what O was trying to say, and to help things along, you can check out the Python reference implementation which includes a manual walk through of what we are discussing here. it has also had some re-introduced bugs cleaned up and corrected.  Thank you for your feedback, this is obviously my first foray in this domain, It can be found at: https://github.com/rehartley/SilentDuck .)*
 
-There is no hubris here - anyone can make a crypto system they cannot crack, as long as they have little enough experience.  I am also aware that pseudo-OTP based crypto key distribution schemes are the perpetual motion / cold fusion devices of the cryptography world.
+I implemented a manual (pencil-and-paper) one-time-pad system of a mid-1970s historically known type, with a Python reference tool (`otp.py`) that automates the same procedure a person would do by hand — every step below is a digit-wise mod-10 add/subtract, repeatable with pencil and the two physical key sheets. The piece I want checked is its rekeying step: two parties who already share a small amount of pre-distributed secret data (two OTP sheets) use it to deliver a much larger fresh working pad to each other over an open, observed channel, without meeting again and without a computer being required in the field.
 
-The operational problem is that pads are finite: a remote recipient eventually runs out, and there is no secure channel available to replenish with fresh material — only an open, observed channel. The current approach is to pre-share a small secret and use it to deploy a large fresh working pad over that open channel; the goal here is to characterise how much security that actually buys.
-
-**To concede the obvious up front, so no one spends an answer on it:** this is *not* information-theoretically secure and cannot be. Far more new key material is transported than the shared secret it starts from, over an observed channel, so by Shannon the transported pad carries at most the entropy of the shared secret against anyone who records the transmission. "You can't stretch a one-time pad" is understood — that isn't the question being asked.
-
-**The actual question is the computational work factor** required to recover the shared secret (and therefore the transported pad) given the broadcast ciphertext, with and without known plaintext.
+The question is the computational work factor required to recover the two shared sheets — and therefore the delivered pad — from what's actually broadcast, with and without later known plaintext. Everything below (construction, numbers, claims) is read directly off the current `otp.py` and independently re-verified this session by running the real functions (`combinateExpandedKeys()`, `do_joinKeys()`, `do_unjoinKeys()`, `randDigits()`) against fresh random input, not by re-deriving on paper and hoping. I'm happy to share the verification scripts.
 
 ## The construction
 
-**Shared secret:** two pre-shared OTP sheets, `P` and `Q`. Each is 10 rows × 25 digits (5 groups of 5). That's **500 shared digits total (~1660 bits)** — the whole entropy budget.
+**Shared secret:** two pre-shared sheets, $k_i$ and $k_j$. Each is 10 rows $r_0,\dots,r_9$ of 25 digits (250 digits/sheet, 500 digits total).
 
-From one sheet with rows `r0 … r9`:
+For a 5-element subset $S \subseteq \{0,\dots,9\}$, define the **row value**
 
-1. Form all **C(10,5) = 252** five-row subset sums. For each 5-subset `S`, take `row_S = Σ_{k∈S} r_k`, digit-wise **mod 10, no carry**. (The tool actually uses subtraction because it's easier to do by hand on paper; the sign doesn't change the structure.) This gives a 252 × 25 table.
-2. **Sort the table.** This is the load-bearing step for the question below.
+$$e_S = -\sum_{t \in S} r_t \pmod{10}$$
 
-Do this for both sheets, producing sorted tables `A` (from `P`) and `B` (from `Q`), each 252 × 25.
+(digit-wise, no carry between the 25 positions). Folding $e_S$'s five 5-digit groups together the same way (digit-wise, no carry) gives a 5-digit **checksum** $c_S$. Every one of the $\binom{10}{5}=252$ subsets $S$ (fixed, public, lexicographic order) gets expanded this way, for both sheets independently — 252 rows of $(e_S, c_S)$ per sheet.
 
-3. **Combine, don't concatenate.** The wrapping keystream is `K = A + B`, added row-wise / digit-wise mod 10. (An earlier draft of the code concatenated the two tables into 504 rows — that version is weaker and is *not* what's being asked about here. Combining means an attacker only ever sees the sum of the two tables, never `A` or `B` alone.)
+**Combining the two sheets** (`do_joinKeys()`): the 252 rows from $k_i$ and the 252 rows from $k_j$ are pooled into one list of 504, **sorted by checksum** (collisions broken deterministically: bump to the next checksum value mod 100000, in encounter order — $k_i$'s rows first, then $k_j$'s), then split at the midpoint. Rank $r$ (in the sorted 504) is paired with rank $r+252$, for $r = 0,\dots,251$, and the two $e$ values are added digit-wise mod 10. This gives $K$: 252 rows × 25 digits = 6300 digits.
 
-4. Generate a **fresh random working pad `R`** locally, the same size as `K` (6300 digits).
-5. Broadcast `C = R − K` (mod 10) over the open channel.
+A fresh pad $R$ (6300 digits, drawn from the OS entropy source, 25 digits at a time) is generated, and the sender broadcasts
 
-The receiver holds `P` and `Q`, recomputes `A`, `B`, `K` deterministically, and recovers `R = C + K`. Both ends now share the fresh pad `R`.
+$$C = K - R \pmod{10}$$
 
-An eavesdropper sees `C`, and eventually sees traffic encrypted under `R`.
+The receiver, holding the same $k_i,k_j$, recomputes $K$ deterministically and recovers $R = K - C$. Only the first 6250 of $R$'s 6300 digits get written out as the 25 new key sheets that are actually used afterward — the remaining 50 digits are generated and consumed in the masking step but never saved as usable key material, identically on both ends, so this doesn't desynchronize sender and receiver.
 
-**Threat model:** Kerckhoffs's assumption throughout. The fixed enumeration order of the 252 five-row subsets, the checksum formula used to sort them, and every other step of the algorithm are public. The only secrets are the 500 digits of `P` and `Q` themselves.
+**What an eavesdropper actually sees:** $C$ (6300 digits, every rekeying event), and — per the operational scenario this exists for — eventually traffic enciphered under $R$, which can supply known plaintext. Everything else is public: the combo enumeration, the checksum and pairing rule, the random-digit generator, all of `otp.py`. The only secret is the 500 digits of $k_i,k_j$.
 
-## What this reduces to
+## Structural facts about $K$ as a function of $(k_i, k_j)$
 
-Recovering the shared secret from `C` means reconstructing each sheet's 10 rows from (a masked, summed version of) its 252 five-row subset sums. Reconstructing a set from its subset/pairwise sums is the **turnpike / beltway problem** (a.k.a. partial-digest), here in its **cyclic mod-10** form.
+These bear directly on how hard $C$ is to invert, since $C$ only ever depends on $k_i,k_j$ through $K$. All verified this session against the live `combinateExpandedKeys()`/`do_joinKeys()`, on real random sheets:
 
-The twist of interest: the attacker never sees a clean beltway instance. They see `C = A + B`, the **sum of two independently-seeded, independently-sorted instances**. That superposition is the thing hoped to be doing real work, and it's the part that outside evaluation is needed for.
-
-## What has already been worked out
-
-- **The naive version is trivially broken.** Single sheet, unsorted: each output-row position is a *fixed, known* linear form in the seed, so known plaintext gives a linear system over Z₁₀ and Gaussian elimination recovers everything. Sorting is what kills this — it destroys the map from output-row position back to which subset produced it, converting "solve a linear system" into "reconstruct from an unordered multiset." That's a jump in problem class, not just added seconds. **How big a jump remains the open question.**
-
-- **A known sort-invariant leak.** Each source row appears in C(9,4) = 126 of the 252 subsets, and 126 ≡ 6 (mod 10), so the column-sum of a whole table is `6 × (row-total of the sheet)` mod 10 — and sorting doesn't touch it. So `ΣA`, `ΣB`, and hence `ΣK`, leak sixfold multiples of each sheet's row-totals regardless of the sort. Any attack probably starts here.
-
-- **Column independence.** The 25 digit-columns are independent size-10 instances. So this may be 25 small beltway problems in parallel rather than one big one.
-
-- **A translation symmetry that protects nothing useful.** Shifting a sheet's rows by a constant leaves the subset sums fixed mod 10 (the `5t ≡ 0` coset — five of the ten possible shifts, since arithmetic here is mod 10, not a vector space, so there's no "dimension" to speak of), so that coset is unrecoverable — but the wrapping rows are *invariant* under it, so it's not guarding any key material.
+- **The checksum only depends on a 5-digit fold of each contributing row, not its full 25 digits.** Precisely, $c_S = -\sum_{t\in S}\mathrm{fold}(r_t) \pmod{10}$, where $\mathrm{fold}$ reduces a row to 5 digits the same way $e_S$ is folded into $c_S$. Confirmed exactly, for all 252 combos, on real sheets. So the sort key that decides which rows land on which side of the median — and hence which two rows of $K$ get paired and added — is drawn from a $10^5$-value space, far coarser than the $10^{25}$-value space the row content itself lives in.
+- **Pooling before sorting genuinely mixes the two sheets.** Over 200 random $(k_i,k_j)$ pairs, the low-checksum half (`keysA`) contained rows that actually originated from $k_j$ **50.0% of the time on average**, and symmetrically for `keysB`/$k_i$. So $K$'s rows are not "sheet $i$'s rows paired with sheet $j$'s rows in a fixed way" — which row pairs with which is itself a secret-dependent function of both sheets, decided by the joint sort.
+- **Checksum collisions average ~1.25 per rekeying event** (504 draws into $10^5$ buckets; birthday estimate $\approx 1.27$, matches), but with a longer tail than that estimate alone would suggest — one run of 200 trials saw as many as 21. The 252 checksums from a single sheet aren't mutually independent (all built from only 10 underlying row-folds via overlapping 5-subsets), which is a plausible source of the extra spread.
+- **Shifting every digit of every row of one sheet by the same even constant (0, 2, 4, 6, 8, mod 10) leaves that sheet's entire 252-row table — data and checksums — byte-identical**, verified exactly; the five odd shifts (1,3,5,7,9) collapse onto one shared alternate table, also byte-identical to each other. Since `do_joinKeys()` only ever consumes this table, that means $K$ (and hence $C$, for fixed $k_j$ and $R$) is *exactly* the same for any of the 5 even-shift variants of $k_i$. This is a genuine, permanent ceiling on what any observation of the real protocol's output could ever pin down about $k_i$ — not a big one (5 candidates per sheet is nothing next to the ~1661-bit budget of the shared secret), but it's exact and worth having on record rather than assumed.
+- Round-trip correctness: `do_unjoinKeys()` recovered the receiver's pad byte-for-byte identical to what `do_joinKeys()` generated, across a live run on real files.
 
 ## Questions
 
-1. Given `C = A + B` where each of `A`, `B` is the **sorted** 252-row subset-sum table of an unknown 10-row sheet mod 10, what is the best known attack to recover the sheets (equivalently `K`, equivalently `R`), and its work factor?
-2. Does the superposition (seeing only `A + B`, never either table) *materially* harden the single-instance beltway problem — or does it separate cheaply, e.g. via the symmetric-function leaks above?
-3. **How much does sorting actually buy?** Is it the difference between a polynomial linear solve and exponential reconstruction, or does the value-multiset still constrain things enough that annealing / CP-SAT recovers the seed quickly in practice?
-4. Does the column independence enable a divide-and-conquer that dominates the attack?
-5. Under **known plaintext** — cribbing rows of `R` gives the matching rows of `K = R − C` — does partial knowledge of `K` unwind the seeds faster than ciphertext-only?
+1. What's the best known attack to recover $k_i,k_j$ (equivalently $K$, equivalently $R$) from $C$, given the full construction above — is the checksum-sorted, rank-paired combination step (pool both sheets' 504 rows, globally sort, pair rank $r$ with rank $r+252$) reducible to known turnpike/beltway (partial-digest) results, or does the secret-dependent pairing put it in a different class?
+2. Does pooling both sheets before sorting (so each output half is a ~50/50, secret-dependent mix of both sheets, as measured above) meaningfully change the work factor relative to combining same-indexed rows directly — net help, net hurt, or wash?
+3. Under known plaintext — a later message enciphered under $R$ gets compromised, giving some rows of $R$ and hence, via $C$, the matching rows of $K = C + R$ — does that let an attacker unwind $k_i,k_j$ appreciably faster than ciphertext-only, particularly using the row-difference recovery available from any set of known $K$-rows (subtracting the value of two combos differing by one swapped row cancels everything but that one row's contribution)?
+4. Is there existing literature on recovering a hidden set from a *rank-sorted* pairing of its subset sums with another hidden set's — as opposed to the plain single-sheet subset-sum/turnpike problem — that this reduces to or resembles?
 
-This scheme does not need to be unbreakable. What's needed is to know whether it's broken *trivially* or only at a work factor that's meaningful for the two shared sheets' worth of entropy. Concrete attacks, reductions to known beltway results, or "here's the annealing landscape and it's smooth/cliff" empirics are all welcome.
+This isn't expected to be unbreakable, and I'm not asking for a blessing — I'd like to know whether recovering $k_i,k_j$ from what's actually broadcast is trivial, or sits at a work factor that's meaningful against the ~1661-bit budget of the shared secret. Concrete attacks, reductions to known results, or a clear argument for why a given avenue doesn't help are all useful.
