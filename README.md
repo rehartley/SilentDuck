@@ -211,6 +211,8 @@ The final result is: "H E L L O ,   ~  П Р И В Е Т .  ~ ", or "HELLO, ПР
 Error Recovery:
 --------------
 
+*(In a pure OTP system, this next technique might be used, but for derived keys from a keys haring scheme, they might not)*
+
 It may be the case that a procedural error in the manual encryption process is made, and the sender accidentally performs the decryption step (adding the key) instead of the encryption step (subtracting it). A "AAAAA" check group is often added to the front of a message before encoding specifically to catch this kind of error, since it becomes a "00000" check group once encoded — the recipient expects to see it fall out on decryption, confirming the right key page was used:
 
 ```
