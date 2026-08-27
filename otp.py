@@ -466,28 +466,11 @@ def randDigit():
             tmp = tmp % 10
     return str(tmp)
 
-# Invoke the above to create a string of digits with length 'dc',
-# with no repeated digits (1/9 notwitstanding).
-# This is a psychological ploy to avoid the perception of a repeating
-# pattern in the digits, hopefully instilling more trust. If there
-# were a repeating pattern, it could be an anxiety causing clue to the
-# user that the digits were not truly random, and that the user should
-# not trust them, even if they were. This also signals to adversaries
-# that any apparent pattern could never be clear text shining through,
-# but only an artifact of randomness.  Trust in the process adds more
-# than the 10% or 11% entropy loss of not allowing repeated digits,
-# and is worth the tradeoff.  We hope.
-
 def getRandDigits( dc ):
     tmp = ''
-    the_digit = randDigit()
-    old_digit = randDigit()
 
     for x in range( dc ):
-        while the_digit == old_digit:
-            the_digit = randDigit()
-        old_digit = the_digit
-        tmp += the_digit
+        tmp += randDigit()
     return tmp
 
 # invoke the above a certain number of times, adding the strings of numbers
