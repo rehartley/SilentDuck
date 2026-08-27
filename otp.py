@@ -1085,8 +1085,10 @@ def combinateExpandedKeys( keyInput ):
 
 
 '''
-input parameters: two key files, an output file, file prefix for saving 25 new
-random keypad sheets
+input parameters:
+    - two key files
+    - an output file
+    - file prefix for saving 25 new random keypad sheets
   process:
     take our last two otp sheets
     generate 252 combinations of five row sums (where each row has checksum appended to it)
@@ -1112,8 +1114,6 @@ this bit of code using an offline computer or dedicated device.
 
 '''
 
-checkSumRandomizing = True
-
 def do_joinKeys( file_i, file_j, combinedKeyFile, prefix ):
    
     ki = loadKeyPad( file_i )
@@ -1128,97 +1128,101 @@ def do_joinKeys( file_i, file_j, combinedKeyFile, prefix ):
         dbg( str(len(kj)) + ', ki:' + kj )
         die( 'bad second key:')
    
-    iTmp = combinateExpandedKeys( ki )
-   
+    iTmp = combinateExpandedKeys( ki )   
+    jTmp = combinateExpandedKeys( kj )   
     ki = None
-   
-    jTmp = combinateExpandedKeys( kj )
-   
     kj = None
    
-    # combine ki's and kj's expanded tables digit-wise (not concatenation),
-    # so a leak of this table only ever reveals ki_row + kj_row, never
-    # either sheet individually -- 252 rows total, not 504. Built as a
-    # list, iterated first to last, so the order is plain to a reader
-    # (and reproducible by hand) rather than relying on dict ordering.
-    tmp = []
-    for c in range( len(iTmp) ):
-        tmp.append( stringAdd( iTmp[c], jTmp[c] ) )
-
+    # append the two tables together, so we have 504 rows of 30 digits each (25 + 5 checksum).
+    # combinateExpandedKeys() returns a dict keyed 0..251 in combo5x10 order, not a list,
+    # so pull the values out in that order before concatenating -- dicts don't support "+".
+    tmp = [ iTmp[c] for c in range( len(iTmp) ) ] + [ jTmp[c] for c in range( len(jTmp) ) ]
     iTmp = None
     jTmp = None
 
-    # create table indexed by the unique checksum
+    # create dictionary indexed by the unique checksum
     keys = {}
-     
     x = ''
 
-    if( checkSumRandomizing == True ):
-        checkSumString = '00000'
-        csNum = 0
-     
-        # build table indexed by checksum
-        for x in tmp:
-            # take checksum / index added previously as row's last five digits
-            checkSumString = x[-5:]
-
-            # remove five digit checksum from string x
-            x = x[:-5:]
-
-            # find next empty spot by avoiding hash/checksum collisions.
-            # wrap mod 100000 (take the rightmost 5 digits) instead of just
-            # adding 1, so checkSumString always stays exactly five digits --
-            # otherwise a collision chain crossing '99999' would overflow to
-            # a 6-digit string like '100000', which a plain string sort
-            # would misorder ahead of '99999'.
-            while( checkSumString in keys ):
-                csNum = ( int(checkSumString) + 1 ) % 100000
-                checkSumString = '{:05}'.format(csNum )
-
-            # table of OTP keys indexed by checksum
-            keys[checkSumString] = x
-    else:
-
-        for x in tmp:
-            # remove five digit checksum from string x
-            keys[len(keys)] = x[:-5:]
-
+    checkSumString = '00000'
+    csNum = 0
     
-    # retvalue is otp array combined with random data ordered by checksum
+    # build table indexed by checksum
+    for x in tmp:
+        # take checksum / index added previously as row's last five digits
+        checkSumString = x[-5:]
+
+        # remove five digit checksum from string x
+        x = x[:-5:]
+
+        # find next empty spot by avoiding hash/checksum collisions.
+        # wrap mod 100000 (take the rightmost 5 digits) instead of just
+        # adding 1, so checkSumString always stays exactly five digits --
+        # otherwise a collision chain crossing '99999' would overflow to
+        # a 6-digit string like '100000', which a plain string sort
+        # would misorder ahead of '99999'.
+        while( checkSumString in keys ):
+            csNum = ( int(checkSumString) + 1 ) % 100000
+            checkSumString = '{:05}'.format(csNum )
+
+        # dictionary of OTP keys indexed by checksum
+        keys[checkSumString] = x
+
+    # keys is now a dict of 504 rows of 25 digits each, indexed by checksum. The
+    # checksum is not stored in the value, only in the key, so it is not
+    # available to an attacker who sees the ciphertext, and it is not needed
+    # for decryption, since both ends can recompute it from the two input pads.
+    tmp = None
+    tmp = []
+
+    sorted_keys = sorted(keys.keys())
+
+    for k in sorted_keys:
+        tmp.append( keys[k] )
+    
+    keys = None
+
+    keys_size = len(tmp)
+    half_keys_size = int( keys_size / 2 )
+
+    # the keys are interwoven, so we split the 504 rows into two halves of 252 rows each, and then combine them with a random 25 sheet keypad to generate a new combined key
+
+    keysA = tmp[:half_keys_size]
+    keysB = tmp[half_keys_size:]
+    tmp = None
 
     newOtpTbl = ''
-    newRandomKey = {}
+    newRandomKeyStr = ''
 
-    # process rows in checksum order, not insertion/combo5x10 order -- this is
-    # the actual security-relevant step: it's what breaks the fixed, public
-    # map from output-row position back to which of the 252 combo5x10 subsets
-    # produced it. Plain string sort, matching the checksum's on-paper form
-    # (a five-digit group, sorted the way you'd sort a stack of index cards).
-    # Both ends recompute this deterministically from P/Q, so no order
-    # information needs to travel with the ciphertext.
-    for k in sorted( keys ):
+    # combine the three parts
+    for x in range(half_keys_size):
+        tmp_s = stringAdd(keysA[x], keysB[x])
+        # this is what is different between receiver and sender: the fresh
+        # random pad material (rd) has to be kept, not just folded into the
+        # ciphertext, since it -- not the ciphertext -- is the new keypad we
+        # deliver locally in the clear below.
         rd = randDigits(25)
-        newRandomKey[len(newRandomKey)] = rd
-        # we subtract here because adding is easier to do by hand
-        newOtpTbl += stringSubtract( rd, keys[k] )
+        newRandomKeyStr += rd
+        tmp_s = stringSubtract(tmp_s, rd )
+        newOtpTbl += tmp_s
+        tmp_s = None
 
-   
-    keys = None
+    keysA = None
+    keysB = None
+
+    # write out the combined table of keys in the clear to the combinedKeyFile.
+    # this will be sent to the distant recipient, who will use it to decipher
+    # the message.  The combinedKeyFile is not a key file, but a table of keys
+    # that will be used to generate the new random key for the next message.
 
     writeFile( combinedKeyFile, codeGroups( newOtpTbl ) )
 
     newOtpTbl = None
 
-   # write out the random table of keys in the clear to the prefix local
-
+    # write out the random table of keys (rd) in the clear to the prefix local
     for i in range( 25 ):
-        tmpStr = ''
-
-        for j in range(10):
-            tmpStr+=newRandomKey[ (i*10) + j]
-
+        tmpStr = newRandomKeyStr[ i*250 : (i+1)*250 ]
         filename = prefix + '{:02}'.format( i+1 ) + '.otk'
-
         writeFile(filename, codeGroups( tmpStr ) )
 
     if keepKeyFilesAfterUse:
@@ -1226,16 +1230,15 @@ def do_joinKeys( file_i, file_j, combinedKeyFile, prefix ):
     else:
         wipeFile( file_i )
         wipeFile( file_j )
-# end -- keygencombine()
+# end -- do_joinKeys()
 
 
 # copied from above, though it is not the same - be careful
 
 def do_unjoinKeys( file_i, file_j, combinedKeyFile, prefix ):
-    i = 0
 
     ki = loadKeyPad( file_i )
-   
+
     if( len(ki) != SHEETSIZE ):
         dbg( str(len(ki)) + ', ki:' + ki )
         die( 'bad first key:')
@@ -1246,83 +1249,86 @@ def do_unjoinKeys( file_i, file_j, combinedKeyFile, prefix ):
         dbg( str(len(kj)) + ', kj:' + kj )
         die( 'bad second key')
 
-   
     iTmp = combinateExpandedKeys( ki )
-    ki = None
-   
     jTmp = combinateExpandedKeys( kj )
+    ki = None
     kj = None
-   
-    # combine ki's and kj's expanded tables digit-wise (not concatenation),
-    # so a leak of this table only ever reveals ki_row + kj_row, never
-    # either sheet individually -- 252 rows total, not 504. Built as a
-    # list, iterated first to last, so the order is plain to a reader
-    # (and reproducible by hand) rather than relying on dict ordering.
-    tmp = []
-    for c in range( len(iTmp) ):
-        tmp.append( stringAdd( iTmp[c], jTmp[c] ) )
 
+    # append the two tables together, so we have 504 rows of 30 digits each
+    # (25 + 5 checksum) -- must match do_joinKeys() exactly, or the two sides
+    # build different checksum tables.
+    tmp = [ iTmp[c] for c in range( len(iTmp) ) ] + [ jTmp[c] for c in range( len(jTmp) ) ]
     iTmp = None
     jTmp = None
 
-    # create table indexed by the unique checksum
+    # create dictionary indexed by the unique checksum -- identical to
+    # do_joinKeys()'s collision handling, so both sides land on the same
+    # checksum -> row mapping.
     keys = {}
-     
     x = ''
-    
-    if( checkSumRandomizing == True ):
-        checkSumString = '00000'
-        csNum = 0
-     
-        # build table indexed by checksum
-        for x in tmp:
-            # take our checksum / index added previously as the last five digits of the row
-            checkSumString = x[-5:]
 
-            # remove the five digit checksum from the string x
-            x = x[:-5:]
+    checkSumString = '00000'
+    csNum = 0
 
-            # to avoid hashing/ checksum collisions, we find the next empty
-            # spot. Must match the wraparound in do_joinKeys() exactly, or
-            # the two sides build different checksum orderings.
-            while( checkSumString in keys ):
-                csNum = ( int(checkSumString) + 1 ) % 100000
-                checkSumString = '{:05}'.format(csNum )
+    for x in tmp:
+        # take checksum / index added previously as row's last five digits
+        checkSumString = x[-5:]
 
-            # now we have a table of OTP keys indexed by checksum
-            keys[checkSumString] = x     
-    else:
-        for x in tmp:
-            #remove the five digit checksum from the string x
-            keys[len(keys)] = x[:-5:]
-    
-    # merge table into a single long string, in checksum order -- must match
-    # the sort do_joinKeys() applies when it builds newOtpTbl, or every row
-    # decrypts against the wrong random data. See the comment in
-    # do_joinKeys() for why this order matters cryptographically.
-    keysTmp = ''
-    for x in sorted( keys ):
-        keysTmp += keys[x]
+        # remove five digit checksum from string x
+        x = x[:-5:]
 
-    keys = keysTmp
-    
-    # At this point we have our keys setup ready to extract from our input message.
-    # need to read in the input message, and convert the keys[] rows of 25 digits each into a single string
-  
-   
-    keyInput = loadKeyPad( combinedKeyFile )
-    
-    newOtpStr = stringAdd( keys, keyInput )
+        # find next empty spot by avoiding hash/checksum collisions -- must
+        # match the wraparound in do_joinKeys() exactly, or the two sides
+        # build different checksum orderings.
+        while( checkSumString in keys ):
+            csNum = ( int(checkSumString) + 1 ) % 100000
+            checkSumString = '{:05}'.format(csNum )
+
+        # dictionary of OTP keys indexed by checksum
+        keys[checkSumString] = x
+
+    tmp = None
+    tmp = []
+
+    sorted_keys = sorted(keys.keys())
+
+    for k in sorted_keys:
+        tmp.append( keys[k] )
+
     keys = None
+
+    keys_size = len(tmp)
+    half_keys_size = int( keys_size / 2 )
+
+    # same interweaving split do_joinKeys() applies
+    keysA = tmp[:half_keys_size]
+    keysB = tmp[half_keys_size:]
+    tmp = None
+
+    # recompute K = keysA + keysB row by row, same as do_joinKeys()
+    combinedKeys = ''
+    for x in range(half_keys_size):
+        combinedKeys += stringAdd( keysA[x], keysB[x] )
+
+    keysA = None
+    keysB = None
+
+    # load the ciphertext the sender transmitted: ct = K - rd, per row, concatenated
+    keyInput = loadKeyPad( combinedKeyFile )
+
+    if len(keyInput) != len(combinedKeys):
+        die( 'combined key file length does not match the expected keypad length.' )
+
+    # invert do_joinKeys()'s masking step: ct = K - rd, so rd = K - ct
+    newRandomKeyStr = stringSubtract( combinedKeys, keyInput )
+    combinedKeys = None
     keyInput = None
-   
-    # write out the random table of keys in the clear to the prefix local
-   
+
+    # write out the recovered random table of keys (rd) in the clear to the
+    # prefix local -- must match do_joinKeys()'s slicing exactly.
     for i in range( 25 ):
+        tmpStr = newRandomKeyStr[ i*250 : (i+1)*250 ]
         filename = prefix + '{:02}'.format( i+1 ) + '.otk'
-        x = i * 250
-        
-        tmpStr = newOtpStr[x:x+250]
         writeFile(filename, codeGroups( tmpStr ) )
 
     if keepKeyFilesAfterUse:
@@ -1330,8 +1336,7 @@ def do_unjoinKeys( file_i, file_j, combinedKeyFile, prefix ):
     else:
         wipeFile( file_i )
         wipeFile( file_j )
-
-# keyuncombine()
+# do_unjoinKeys()
 
 
 
