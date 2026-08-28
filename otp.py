@@ -154,6 +154,9 @@ def writeFile( fn, s ):
         return
         
     try:
+        parentDirectory = os.path.dirname( fn )
+        if parentDirectory:
+            os.makedirs( parentDirectory, exist_ok=True )
         f = open( fn, 'w+', encoding="utf-8" )
         f.write( s )
         f.flush()
@@ -1098,6 +1101,8 @@ this bit of code using an offline computer or dedicated device.
 '''
 
 def do_joinKeys( file_i, file_j, combinedKeyFile, prefix ):
+    if prefix is None:
+        die( 'no key prefix given')
    
     ki = loadKeyPad( file_i )
    
@@ -1219,6 +1224,8 @@ def do_joinKeys( file_i, file_j, combinedKeyFile, prefix ):
 # copied from above, though it is not the same - be careful
 
 def do_unjoinKeys( file_i, file_j, combinedKeyFile, prefix ):
+    if prefix is None:
+        die( 'no key prefix given')
 
     ki = loadKeyPad( file_i )
 
@@ -1311,7 +1318,7 @@ def do_unjoinKeys( file_i, file_j, combinedKeyFile, prefix ):
     # prefix local -- must match do_joinKeys()'s slicing exactly.
     for i in range( 25 ):
         tmpStr = newRandomKeyStr[ i*250 : (i+1)*250 ]
-        filename = prefix + '{:02}'.format( i+1 ) + '.otk'
+        filename = prefix + '-' +  '{:02}'.format( i+1 ) + '.otk'
         writeFile(filename, codeGroups( tmpStr ) )
 
     if keepKeyFilesAfterUse:
