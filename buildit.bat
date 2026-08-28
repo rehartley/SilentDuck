@@ -1,1 +1,1 @@
-python -m PyInstaller --onefile otp_wrapper.py
+python -m PyInstaller otp.spec

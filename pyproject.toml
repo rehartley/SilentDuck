@@ -1,0 +1,19 @@
+[build-system]
+# PEP 517/518 build backend declaration -- lets `pip install .` and
+# `python -m build` work without needing setuptools preinstalled globally.
+# Project metadata itself stays in setup.py (it derives VERSION from
+# otp.py at build time, which a static pyproject.toml table can't do).
+#
+# pyinstaller (and, on Windows, windows-curses, since pytextedit.py's
+# curses import has to be importable for PyInstaller to analyze it) are
+# listed here too, not in install_requires: pip installs everything under
+# `requires` into the isolated build environment before running setup.py,
+# and setup.py's custom build step (see cmdclass in setup.py) shells out to
+# PyInstaller during `pip install .`, so both need to already be present
+# at that point.
+requires = [
+    "setuptools>=61.0",
+    "pyinstaller>=6.22.2",
+    'windows-curses>=2.4.0; sys_platform == "win32"',
+]
+build-backend = "setuptools.build_meta"

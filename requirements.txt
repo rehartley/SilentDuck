@@ -1,0 +1,19 @@
+# Dependencies for otp.py / pytextedit.py, plus the tooling used to
+# package them as a standalone executable.
+#
+# otp.py / pytextedit.py are otherwise pure standard library (sys, os,
+# time, itertools, re, signal, typing). The only non-stdlib runtime
+# dependency comes from pytextedit.py's use of `curses` for its
+# full-screen "EDITOR" text editor: CPython ships `curses` built in on
+# Linux/macOS, but not on Windows, where it has to be supplied by the
+# `windows-curses` package.
+windows-curses>=2.4.0; sys_platform == "win32"
+
+# PyInstaller builds otp.spec into a standalone executable (buildit.bat,
+# or `python -m PyInstaller otp.spec`). `pip install .` already pulls its
+# own copy into an isolated build environment to do this automatically,
+# but it's listed here as a standard dependency too so it's available
+# directly in your environment for manual/ad-hoc rebuilds. PyInstaller
+# doesn't cross-compile -- it always builds for whatever OS/arch it's
+# running on.
+pyinstaller>=6.22.2

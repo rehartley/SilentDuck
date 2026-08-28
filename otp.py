@@ -53,7 +53,7 @@ SILENT DUCK (SD) allows enthusiasts to dabble with an essential element of spycr
 
 Please enjoy trying it out. You will find a few fun surprises along the way not explored in detail elsewhere. And if you do happen to be a wannabe spy, who knows, you may find it useful.'''
 
-versionStr = 'v0.9h'
+versionStr = 'v0.9.8'
 
 # globals
 useMorseShorts = False

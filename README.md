@@ -7,6 +7,35 @@ Title:
 SILENT DUCK - One time pad encryption processing sampler
 
 
+Installation:
+-------------
+
+Requires Python 3.9+. There are two ways to run this app:
+
+1) Straight from source, no install/build step at all:
+
+       python otp.py -h
+
+2) As a standalone program file that needs no Python installed to run,
+   which you build once and can then copy anywhere:
+
+       pip install .
+
+   This creates `dist/otp` (`dist/otp.exe` on Windows), a self-contained
+   copy of the app -- then just run that file directly, e.g. `dist/otp -h`.
+
+   That file always matches the computer it was built on: building on
+   Windows gives you a Windows `.exe`; building on Linux gives you a Linux
+   program file. It can't build one kind on the other kind of computer.
+
+   To rebuild `dist/otp` directly (without redoing the full `pip install
+   .` each time), get the dependencies (including PyInstaller) into your
+   environment once, then:
+
+       pip install -r requirements.txt
+       python -m PyInstaller otp.spec   # or: buildit.bat
+
+
 Introduction:
 -------------
 
