@@ -53,6 +53,8 @@ In addition to reading and writing normal files, you can use a builtin full scre
 
 Although this app is written in Python, the install script will create a single executable file to make deployments easier.
 
+If curious about the experimental key exchange process, please feel free to ask questions [here](https://crypto.stackexchange.com/questions/119883/work-factor-of-a-two-pad-sorted-combinatorial-key-wrapping-scheme-for-manual-ot).
+
 
 What's Included:
 ----------------
