@@ -55,6 +55,8 @@ Although this app is written in Python, the install script will create a single 
 
 If curious about the experimental key exchange process, please feel free to ask questions [here](https://crypto.stackexchange.com/questions/119883/work-factor-of-a-two-pad-sorted-combinatorial-key-wrapping-scheme-for-manual-ot).
 
+The current version is also [here](https://github.com/rehartley/SilentDuck/blob/main/otp-rekey-post.md).
+
 
 What's Included:
 ----------------
