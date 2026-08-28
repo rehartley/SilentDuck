@@ -4,8 +4,12 @@
 Title:
 ------
 
-SILENT DUCK - One time pad encryption processing sampler
+SILENT DUCK - One time pad encryption processing sampler using historical Cold War era process.
 
+ATTENTION!:
+-----------
+
+Please read this document to understand what it does so that you do not accidently lose your data.
 
 Installation:
 -------------
@@ -45,14 +49,34 @@ SILENT DUCK (SD) is the name of the app, and is not the term used by the creator
 
 Although usable for encrypting messages, this app focuses on exercising various features particular to one time pad systems.
 
-In addition to reading and writing normal files, you can use a builtin full screen text editor (just like it was 1985 again!) by specifying "EDITOR" as the file name to keep it in memory. Some caveats must apply, such as putting a laptop into hibernation will write all memory to storage, as does squeezing memory onto swap space, etc.
+In addition to reading and writing normal files, you can use a builtin full screen text editor (like it was 1985 again!) by specifying "EDITOR" as the file name to keep it in memory. Some caveats must apply, such as putting a laptop into hibernation will write all memory to storage, as does squeezing memory onto swap space, etc.
 
-Although this app is written in Python, it has a buildit.bat script to turn it into a single .EXE file if that makes deployments easier for you.
+Although this app is written in Python, the install script will create a single executable file to make deployments easier.
+
+
+What's Included:
+----------------
+
+- The `otp` tool itself -- run from source (`otp.py`) or built as a
+  standalone program (see Installation, above).
+- [Silent Duck Manual.md](Silent%20Duck%20Manual.md) -- a series of lessons
+  covering every SD command, each explaining what it does, how to do it
+  with the `otp` command line, and -- where a manual equivalent exists --
+  how to do the same thing by hand with pen and paper.
+- [key_exchange_instructions.md](key_exchange_instructions.md) -- a
+  standalone, pencil-and-paper procedure explaining how to turn two old
+  key sheets into one brand-new code pad, and get it safely to the other
+  party, without needing a computer.
+
+How it works:
+-------------
 
 WARNING:
-1) This app will automatically wipe and delete input files for each command.
-2) Using the "-k" flag inhibits this auto-wipe and delete behaviour
+1) This app will automatically wipe and delete input files for each command, INCLUDING KEY FILES!!!
+2) Using the "-k" flag inhibits the auto-wipe and delete behaviour
 3) There is also a test flag "-t" which prevents all file output
+
+*So, the above warning means that if you generate keys, and do not make a copy of them, and then encipher some text with OTP, you will likely NOT be able to get them back because this tool will wipe the input file and the keys used to generate the enciphered output file.  OTP only works if you have a copy of your keys stored safely elsewhere.  This tool can aggresively overwrite files multiple times, not just delete them, so please be warned.*
 
 SILENT DUCK (SD) operates with the following Roman and Cyrillic letters, numerals, and punctuation marks:
 
