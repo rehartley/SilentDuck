@@ -578,7 +578,7 @@ recipient over the open channel) and the new cleartext keypad
 ### Pen and paper
 This procedure is involved enough to warrant its own dedicated worked
 example rather than repeating it here — see
-[combinometrics_manual_otp.md](../combinometrics_manual_otp.md) for the full
+[combinometrics_manual_otp.md](combinometrics_manual_otp.md) for the full
 by-hand walkthrough (expanding combinations, computing checksums, combining
 `ki`/`kj`, masking with fresh random material), with every number
 cross-checked against the actual running code. For the security rationale
