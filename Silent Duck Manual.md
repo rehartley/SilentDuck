@@ -2,8 +2,7 @@
 
 A series of lessons that teach people how to use one time pad (OTP)
 encryption, using the SilentDuck (SD) tool as the reference implementation.
-Each lesson follows the same three-part pattern established in
-[outline.md](outline.md): a brief **Introduction**, how it's done with **SD
+Each lesson follows the same three-part pattern: a brief **Introduction**, how it's done with **SD
 command line** parameters, and — where a manual equivalent exists — how the
 same operation is done by hand with **Pen and paper**.
 
