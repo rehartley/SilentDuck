@@ -351,7 +351,7 @@ Documents:
   [here](https://crypto.stackexchange.com/questions/119883/work-factor-of-a-two-pad-sorted-combinatorial-key-wrapping-scheme-for-manual-ot).
   [key_exchange_instructions.md](key_exchange_instructions.md) (listed
   under What's Included, above), kept for provenance.
-- [Usage.md](Usage.md) -- a standalone reference for `otp.py`'s files,
+- [Usage.md](Usage.md) -- a standalone reference for `[otp.py](otp.py)`'s files,
   features, and full command-line option table.
 
 Example summary of SILENT DUCK (SD) commands:
