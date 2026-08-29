@@ -4,7 +4,9 @@
 Title:
 ------
 
-SILENT DUCK - One time pad encryption processing sampler using historical Cold War era process.
+SILENT DUCK - One time pad encryption processing sampler using historical Cold War era process. Also includes an *experimental* modern key replenishing feature so that distant operators need never run out of one time pads. All the operators in your network will replenish keys simultaneously from the same broadcast by decoding their own unique keys from it independantly.
+
+*(See Documentation section below for details)*
 
 ATTENTION!:
 -----------
@@ -55,7 +57,7 @@ Although this app is written in Python, the install script will create a single 
 
 If curious about the experimental key exchange process, please feel free to ask questions [here](https://crypto.stackexchange.com/questions/119883/work-factor-of-a-two-pad-sorted-combinatorial-key-wrapping-scheme-for-manual-ot).
 
-The current version is also [here](https://github.com/rehartley/SilentDuck/blob/main/otp-rekey-post.md).
+The current version is also [here](otp-rekey-post.md).
 
 
 What's Included:
@@ -314,6 +316,43 @@ The message type codes are used as follows:
 8) Bulk data transmission is being sent, may have previously received key regeneration request.
 9) A special super encrypted message is being sent, decrypt using special keypad as previously instructed.
 
+Documents:
+----------
+
+- [combinometrics_manual_otp.md](combinometrics_manual_otp.md) -- a
+  hand-worked, by-hand-checkable walkthrough of the `-j`/`-u`
+  combinatorial key-expansion math (`combinateExpandedKeys()`,
+  `do_joinKeys()`, `do_unjoinKeys()`), companion to the automated
+  verification in `combinometrics_analysis.py`.
+- [clear_text_attack_analysis.md](clear_text_attack_analysis.md) --
+  whether a later plaintext leak on some messages compromises any
+  others encrypted under keys delivered via `-j`/`-u`: proves it for
+  the seed sheets (`ki`/`kj`) and the ciphertext-only case, and tests
+  the harder partial-compromise case empirically. Companion demo:
+  [keysharing_attack_demo.py](keysharing_attack_demo.py).
+- [broadcast_rekeying_analysis.md](broadcast_rekeying_analysis.md) --
+  the write-up: the `B`-for-`ct`, `K_n`-for-`K` re-framing, why the
+  existing security arguments carry over untouched, the operational
+  case for why this fits a real multi-agent network (and plausibly
+  explains broadcast-not-addressed numbers stations), and the five
+  caveats (HQ's central record store being the real prize,
+  independence of every agent's seed sheets being load-bearing,
+  single-use discipline, traffic-analysis of synchronized rekeying,
+  and transcription accuracy). Companion demo:
+  [broadcast_rekeying_demo.py](broadcast_rekeying_demo.py) -- the
+  four-part verification (independent derivation, HQ-side
+  recomputation, one-agent-compromise isolation, seed-sheet null
+  space), reusing `compute_K()`/`shift_sheet()` from
+  `keysharing_attack_demo.py` rather than duplicating them.
+- [otp-rekey-post.md](otp-rekey-post.md) -- the live text of the
+  question posted to Cryptography Stack Exchange asking outside
+  cryptographers to check the `-j`/`-u` construction's work factor;
+  see also the discussion
+  [here](https://crypto.stackexchange.com/questions/119883/work-factor-of-a-two-pad-sorted-combinatorial-key-wrapping-scheme-for-manual-ot).
+  [key_exchange_instructions.md](key_exchange_instructions.md) (listed
+  under What's Included, above), kept for provenance.
+- [Usage.md](Usage.md) -- a standalone reference for `otp.py`'s files,
+  features, and full command-line option table.
 
 Example summary of SILENT DUCK (SD) commands:
 ---------------------------------------------
