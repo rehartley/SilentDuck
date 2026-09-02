@@ -319,6 +319,13 @@ The message type codes are used as follows:
 Documents:
 ----------
 
+- [SilentDuck_rekeying_as_a_KDF.md](SilentDuck_rekeying_as_a_KDF.md) --
+  the conceptual reframing behind the rekeying scheme: the shared public
+  artifact is a synchronization pointer (an HKDF-style salt/nonce), not
+  an entropy source, so Shannon's perfect-secrecy bound never applies;
+  covers the three correctness conditions, why the KDF must be keyed,
+  and the operational payoff (no courier, per-period forward secrecy,
+  deniability at every layer).
 - [combinometrics_manual_otp.md](combinometrics_manual_otp.md) -- a
   hand-worked, by-hand-checkable walkthrough of the `-j`/`-u`
   combinatorial key-expansion math (`combinateExpandedKeys()`,
@@ -351,7 +358,7 @@ Documents:
   [here](https://crypto.stackexchange.com/questions/119883/work-factor-of-a-two-pad-sorted-combinatorial-key-wrapping-scheme-for-manual-ot).
   [key_exchange_instructions.md](key_exchange_instructions.md) (listed
   under What's Included, above), kept for provenance.
-- [Usage.md](Usage.md) -- a standalone reference for `[otp.py](otp.py)`'s files,
+- [Usage.md](Usage.md) -- a standalone reference for `otp.py`'s files,
   features, and full command-line option table.
 
 Example summary of SILENT DUCK (SD) commands:
