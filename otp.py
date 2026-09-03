@@ -640,7 +640,9 @@ def decode( strIn ):
                 
         # two special codes '94' for digits, '99' for alphabet switch
         if code =='94':
-            tmp += '#'
+            # '#' is a control code, not part of the message -- tracked here
+            # but not written to the output, same as '99' below, so decoded
+            # text comes back clean without the caller having to strip it.
             x+=1
             # process digits until none left
             code = ''
@@ -658,7 +660,6 @@ def decode( strIn ):
                     dbg( 'tmp: ' + tmp )
                     die( 'error: decode() - ' + strIn )
                 x+=2
-            tmp += '#'
 
         elif code == '99':
             # swap alphabets -- '~' is a control code, not part of the
