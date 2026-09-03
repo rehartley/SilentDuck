@@ -452,7 +452,9 @@ QString OTP::decode(const QString &digits, bool *ok)
         }
 
         if (code == QStringLiteral("94")) {
-            tmp += QChar('#');
+            // '#' is a control code, not part of the message -- tracked here
+            // but not written to the output, same as '99' below, so decoded
+            // text comes back clean without the caller having to strip it.
             ++x;
             code.clear();
             while (code != QStringLiteral("94")) {
@@ -477,7 +479,6 @@ QString OTP::decode(const QString &digits, bool *ok)
                 }
                 x += 2;
             }
-            tmp += QChar('#');
         } else if (code == QStringLiteral("99")) {
             usingRoman = !usingRoman;
             number2letter = usingRoman ? &m_number2lat : &m_number2cyr;
