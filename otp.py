@@ -53,7 +53,7 @@ SILENT DUCK (SD) allows enthusiasts to dabble with an essential element of spycr
 
 Please enjoy trying it out. You will find a few fun surprises along the way not explored in detail elsewhere. And if you do happen to be a wannabe spy, who knows, you may find it useful.'''
 
-versionStr = 'v0.9.8'
+versionStr = 'v0.9h'
 
 # globals
 useMorseShorts = False
@@ -63,7 +63,7 @@ wipeRoundCount = 7
 # when False (default/strict), encode() requires an explicit '#' digit-shift
 # code around runs of digits and dies if one is missing. Set True to have
 # encode() insert the missing '#' automatically instead of dying.
-autoInsertDigitShiftCode = False
+autoInsertDigitShiftCode = True
 
 testingMode = False # inhibit changes to file system, no CUD (-R).
 
@@ -157,6 +157,7 @@ def writeFile( fn, s ):
         parentDirectory = os.path.dirname( fn )
         if parentDirectory:
             os.makedirs( parentDirectory, exist_ok=True )
+
         f = open( fn, 'w+', encoding="utf-8" )
         f.write( s )
         f.flush()
@@ -468,6 +469,17 @@ def randDigit():
             # keep 0..249, discard 250..255 to avoid bias
             tmp = tmp % 10
     return str(tmp)
+
+# Invoke the above to create a string of digits with length 'dc',
+# This is a psychological ploy to avoid the perception of a repeating
+# pattern in the digits, hopefully instilling more trust. If there
+# were a repeating pattern, it could be an anxiety causing clue to the
+# user that the digits were not truly random, and that the user should
+# not trust them, even if they were. This also signals to adversaries
+# that any apparent pattern could never be clear text shining through,
+# but only an artifact of randomness.  Trust in the process adds more
+# than the 10% or 11% entropy loss of not allowing repeated digits,
+# and is worth the tradeoff.  We hope.
 
 def getRandDigits( dc ):
     tmp = ''
@@ -1092,7 +1104,7 @@ input parameters:
 
 We enable the checksum randomizing option. The main issue is that it is more difficult to do on pencil and paper, but will require experimentation to be sure.
 
-It may be trivial compared to the 12600 (504 * 5 * 5) numeric additions to make
+It may be trivial compared to the 6,250 (504 * 5 * 5) numeric additions to make
 the keypad combinations, plus 1500 more to add the two halves of the random key.
 
 This could be done using a squared ruled "quadpad", or a spreadsheet or even
@@ -1101,8 +1113,6 @@ this bit of code using an offline computer or dedicated device.
 '''
 
 def do_joinKeys( file_i, file_j, combinedKeyFile, prefix ):
-    if prefix is None:
-        die( 'no key prefix given')
    
     ki = loadKeyPad( file_i )
    
@@ -1224,8 +1234,6 @@ def do_joinKeys( file_i, file_j, combinedKeyFile, prefix ):
 # copied from above, though it is not the same - be careful
 
 def do_unjoinKeys( file_i, file_j, combinedKeyFile, prefix ):
-    if prefix is None:
-        die( 'no key prefix given')
 
     ki = loadKeyPad( file_i )
 
@@ -1318,7 +1326,7 @@ def do_unjoinKeys( file_i, file_j, combinedKeyFile, prefix ):
     # prefix local -- must match do_joinKeys()'s slicing exactly.
     for i in range( 25 ):
         tmpStr = newRandomKeyStr[ i*250 : (i+1)*250 ]
-        filename = prefix + '-' +  '{:02}'.format( i+1 ) + '.otk'
+        filename = prefix + '{:02}'.format( i+1 ) + '.otk'
         writeFile(filename, codeGroups( tmpStr ) )
 
     if keepKeyFilesAfterUse:
