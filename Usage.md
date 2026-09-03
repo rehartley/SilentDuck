@@ -1,14 +1,13 @@
 # SilentDuck OTP
 
-This repository contains `otp.py`, a Python implementation of a one-time pad (OTP) automation tool called "SILENT DUCK". It automates the manual paper-pad procedure used historically for OTP encryption (in the style of "TRIGON"-type systems), letting text be converted to/from digit streams and combined with random keypads generated from OS entropy. There is also a small wrapper script called `otp_wrapper.py` to support building a standalone executable with PyInstaller without modifying the original `otp.py`.
+This repository contains `otp.py`, a Python implementation of a one-time pad (OTP) automation tool. It automates a manual paper-pad procedure used historically for OTP encryption (in the style of "[TRIGON](https://web.archive.org/web/20260821182405/https://www.numbers-stations.com/articles/trigon-numbers-station-the-case-of-alexandr-ogorodnik/)"-type systems), letting text be converted to/from digit streams and combined with random keypads generated from OS entropy. There is also a small wrapper script called `otp_wrapper.py` to support building a standalone executable with PyInstaller without modifying the original `otp.py`.
 
 ## Files
 
 - `otp.py` - Main OTP program source file. It provides command-line options for key generation, encryption, decryption, message splitting, key combining, wiping, and related OTP operations.
-- `pytextedit.py` - Reusable, dependency-free (aside from `curses`) full-screen console text editor. `otp.py` uses it to implement the `EDITOR` pseudo-filename described below.
+- `pytextedit.py` - Reusable, `curses` based full-screen console text editor. `otp.py` uses it to implement the `EDITOR` pseudo-filename described below.
 - `otp_wrapper.py` - Simple wrapper entrypoint that imports `otp` and calls `otp.main()`. This file is used to build a standalone executable with PyInstaller.
 - `otp_wrapper.spec` - PyInstaller spec file generated during the executable build process.
-- `otp_test/` - Sample input files, generated keypads, and `test_otp.bat`, a batch script that exercises most of the CLI options end-to-end (key generation, encipher/decipher, key derivation, join/unjoin, split/merge, stream combine, wipe).
 
 ## Features
 
@@ -105,4 +104,4 @@ python -m PyInstaller --onefile otp_wrapper.py
 
 - `otp_wrapper.py` is intentionally minimal and only forwards execution to `otp.main()`.
 - The original OTP implementation remains in `otp.py`, preserving its source format and CLI behavior.
-- `otp.py` has been developed on and off since 2019 and is released to the public under the Creative Commons license.
+- `otp.py` has been developed on and off for several years and is released to the public under the Creative Commons license.

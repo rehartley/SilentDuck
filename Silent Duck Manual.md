@@ -578,12 +578,12 @@ recipient over the open channel) and the new cleartext keypad
 ### Pen and paper
 This procedure is involved enough to warrant its own dedicated worked
 example rather than repeating it here — see
-[combinometrics_manual_otp.md](combinometrics_manual_otp.md) for the full
+[combinometrics_manual_otp.md](../combinometrics_manual_otp.md) for the full
 by-hand walkthrough (expanding combinations, computing checksums, combining
 `ki`/`kj`, masking with fresh random material), with every number
 cross-checked against the actual running code. For the security rationale
 behind why this construction is believed sound (and open questions about
-its exact work factor), see [otp-rekey-post.md](otp-rekey-post.md).
+its exact work factor), see [otp-rekey-post.md](../otp-rekey-post.md).
 
 ---
 
@@ -608,7 +608,7 @@ are wiped afterward unless `-k` is passed.
 
 ### Pen and paper
 Same reference as lesson 13:
-[combinometrics_manual_otp.md](combinometrics_manual_otp.md) §6 walks
+[combinometrics_manual_otp.md](../combinometrics_manual_otp.md) §6 walks
 through the recovery direction specifically — the recipient repeats the
 same expand/checksum/combine steps independently, arriving at the identical
 `keys` table, then recovers the new key material by addition instead of
