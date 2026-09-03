@@ -1,3 +1,21 @@
+<details>
+<summary><strong>Table of Contents</strong></summary>
+
+- [Title](#title)
+- [Attention](#attention)
+- [Installation](#installation)
+- [Introduction](#introduction)
+- [What's Included](#whats-included)
+- [How it works](#how-it-works)
+- [Manual OTP Procedure](#manual-otp-procedure)
+- [Procedure](#procedure)
+- [Error Recovery](#error-recovery)
+- [Message formats](#message-formats)
+- [Documents](#documents)
+- [Example summary of SILENT DUCK (SD) commands](#example-summary-of-silent-duck-sd-commands)
+
+</details>
+
 # SilentDuck
 
 
