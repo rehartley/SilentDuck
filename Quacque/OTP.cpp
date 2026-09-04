@@ -925,7 +925,7 @@ bool OTP::joinKeys(const QString &fileI, const QString &fileJ,
     // quacque_design.md.
     for (int i = 0; i < kPagesPerPad; ++i) {
         const QString tmpStr = newRandomKeyStr.mid(i * kSheetSize, kSheetSize);
-        const QString filename = QStringLiteral("%1-%2.otk").arg(prefix).arg(i + 1, 2, 10, QChar('0'));
+        const QString filename = QStringLiteral("%1-%2.otk").arg(prefix).arg(i + 1, 3, 10, QChar('0'));
         if (!writeFile(filename, codeGroups(tmpStr)))
             return false;
     }
@@ -1010,7 +1010,7 @@ bool OTP::unjoinKeys(const QString &fileI, const QString &fileJ,
 
     for (int i = 0; i < kPagesPerPad; ++i) {
         const QString tmpStr = newRandomKeyStr.mid(i * kSheetSize, kSheetSize);
-        const QString filename = QStringLiteral("%1-%2.otk").arg(prefix).arg(i + 1, 2, 10, QChar('0'));
+        const QString filename = QStringLiteral("%1-%2.otk").arg(prefix).arg(i + 1, 3, 10, QChar('0'));
         if (!writeFile(filename, codeGroups(tmpStr)))
             return false;
     }
