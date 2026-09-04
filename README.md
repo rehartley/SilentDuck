@@ -4,7 +4,7 @@ One time pad (OTP) encryption, automating a historical Cold War-era
 pencil-and-paper procedure, plus an *experimental* modern rekeying scheme so
 distant operators never run out of pads.
 
-*(This experimental combinatorial key-sharing/rekeying mechanism's potential cryptanalytic security is still being examined.  In all likelihood, this part of the project may be bumping up against ["Schneier's Law"](https://www.schneier.com/blog/archives/2011/04/schneiers_law.html), but so far is holding fast..)*
+*(This experimental combinatorial key-sharing/rekeying mechanism's potential cryptanalytic security is still being examined.  In all likelihood, this part of the project may be bumping up against ["Schneier's Law"](https://www.schneier.com/blog/archives/2011/04/schneiers_law.html), but so far may hold some promise...)*
 
 <details>
 <summary><strong>Table of Contents</strong></summary>
