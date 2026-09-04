@@ -817,7 +817,7 @@ otp -r 3 .....
 otp -q 3 ....
 
 # -g generate key files
-# provide filename prefix for the 25 pages with page number appended, ex: keys/XX123-01.otk
+# provide filename prefix for the 25 pages with page number appended, ex: keys/XX123-001.otk
 otp -g -y keys/XX123
 
 # -gz generate all-zero key files -- same as -g, but skips real randomness
@@ -827,11 +827,11 @@ otp -g -y keys/XX123
 otp -gz -y keys/XX123
 
 # -e encipher file
-otp -e -i inputfile.txt -o outputfile.otp keys/XX123-01.otk
+otp -e -i inputfile.txt -o outputfile.otp keys/XX123-001.otk
 # same but specifying keys 5,6,7 (Linux/OSX/Android):
-otp -e -i inputfile.txt -o outputfile.otp keys/XX123-0[5,6,7].otk
+otp -e -i inputfile.txt -o outputfile.otp keys/XX123-00[5,6,7].otk
 # type the plaintext on screen instead of reading a file:
-otp -e -i EDITOR -o outputfile.otp keys/XX123-01.otk
+otp -e -i EDITOR -o outputfile.otp keys/XX123-001.otk
 
 # -d decipher file
 # (keys work same as above)
@@ -1221,7 +1221,7 @@ def do_joinKeys( file_i, file_j, combinedKeyFile, prefix ):
     # write out the random table of keys (rd) in the clear to the prefix local
     for i in range( 25 ):
         tmpStr = newRandomKeyStr[ i*250 : (i+1)*250 ]
-        filename = prefix + '-' + '{:02}'.format( i+1 ) + '.otk'
+        filename = prefix + '-' + '{:03}'.format( i+1 ) + '.otk'
         writeFile(filename, codeGroups( tmpStr ) )
 
     if keepKeyFilesAfterUse:
@@ -1327,7 +1327,7 @@ def do_unjoinKeys( file_i, file_j, combinedKeyFile, prefix ):
     # prefix local -- must match do_joinKeys()'s slicing exactly.
     for i in range( 25 ):
         tmpStr = newRandomKeyStr[ i*250 : (i+1)*250 ]
-        filename = prefix + '-' + '{:02}'.format( i+1 ) + '.otk'
+        filename = prefix + '-' + '{:03}'.format( i+1 ) + '.otk'
         writeFile(filename, codeGroups( tmpStr ) )
 
     if keepKeyFilesAfterUse:
