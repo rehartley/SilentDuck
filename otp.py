@@ -1221,7 +1221,7 @@ def do_joinKeys( file_i, file_j, combinedKeyFile, prefix ):
     # write out the random table of keys (rd) in the clear to the prefix local
     for i in range( 25 ):
         tmpStr = newRandomKeyStr[ i*250 : (i+1)*250 ]
-        filename = prefix + '{:02}'.format( i+1 ) + '.otk'
+        filename = prefix + '-' + '{:02}'.format( i+1 ) + '.otk'
         writeFile(filename, codeGroups( tmpStr ) )
 
     if keepKeyFilesAfterUse:
@@ -1327,7 +1327,7 @@ def do_unjoinKeys( file_i, file_j, combinedKeyFile, prefix ):
     # prefix local -- must match do_joinKeys()'s slicing exactly.
     for i in range( 25 ):
         tmpStr = newRandomKeyStr[ i*250 : (i+1)*250 ]
-        filename = prefix + '{:02}'.format( i+1 ) + '.otk'
+        filename = prefix + '-' + '{:02}'.format( i+1 ) + '.otk'
         writeFile(filename, codeGroups( tmpStr ) )
 
     if keepKeyFilesAfterUse:
