@@ -1,11 +1,31 @@
 # SilentDuck rekeying challenge — the raid scenario
 
-**The question:** an operator using the `-j`/`-u` rekeying scheme
-([SilentDuck_rekeying_as_a_KDF.md](../SilentDuck_rekeying_as_a_KDF.md),
-put to outside review in
-[otp-rekey-post.md](../otp-rekey-post.md)) is caught. Everything on them at
-that moment is seized. Given the best case an attacker could realistically
-end up with, **can the contents of their secret message be recovered?**
+
+It is the late 60s, early 70s.  You are in some grey dreary part of the world and it is a nasty adversarial environment.
+
+You have been using your trusted one time pad (OTP) system, but are down to your last two sheets - they are held in reserve for OTP key replenishing.
+
+You still don't really believe it works, the math seems off, but you're not a cryppie from HQ - you just look, smell and act like one, an occupational hazard of going native in this part of the world, so you shrug it off.
+
+On Thursday evening, you get the long broadcast with the refresh keys, and transcribe everything precisely.  On Friday you start processing it right after your evening meal, and several hours later are able to extract the digits for your new keypad.  It is late. Your hands are cramping.  You really, really hate cryppies at this point. Swine! You burn the last two sheets from your previous pad, and send a short acknowledgment message back to HQ with your favorite crypto quip.
+
+Then you burn the OTP sheet you just used.
+
+*You are trained and disciplined.*
+
+You are just about to burn the batch of encrypted refresh keys you transcribed the night before.  Before you can turn to the fireplace, you hear a jacket brushing against the wall in the hallway of your apartment.  You freeze.  Rodent?  Cat?
+
+The door flies open. Papers scatter.  Black leather jacket enters, his suppressed Makarov drawn.  You don't move an inch.
+
+*«Так. Что тут у нас?»*
+
+You are burnt.
+
+*Can the contents of your secret message be recovered?*
+
+---
+
+This challenge is built from a modern version of exactly that sort of raid: the intercepted rekey ciphertext, an encrypted message, and every derived key sheet except the one actually used to send it — see [otp-rekey-post.md](../otp-rekey-post.md) for the construction this scenario tests.
 
 This is [Schneier's Law](../SchneiersLaw.md) as a testing methodology, not
 a request for anyone's blessing: publish the generous case, let anyone try,
