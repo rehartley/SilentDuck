@@ -1,0 +1,3 @@
+SHA256 hash of challenge_artifacts.tgz:
+81da7c5194252dd836d534e32163e5f7f2e46ab0baebbba341cf2750e79c4927
+CertUtil: -hashfile command completed successfully.

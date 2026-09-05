@@ -1,0 +1,3 @@
+SHA256 hash of challenge_solution.tgz:
+b82ee451831c43f6ef09fe325dfa7cc7653558771b7fcc17d7cc811004c30027
+CertUtil: -hashfile command completed successfully.
