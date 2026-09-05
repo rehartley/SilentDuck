@@ -140,3 +140,8 @@ Documentation
   Cryptography Stack Exchange asking outside cryptographers to check the
   `-j`/`-u` construction's work factor; see also the
   [discussion thread](https://crypto.stackexchange.com/questions/119883/work-factor-of-a-two-pad-sorted-combinatorial-key-wrapping-scheme-for-manual-ot).
+- [challenge](challenge) — a hands-on version of that same question: the
+  best case for an attacker who raids a messenger mid-operation (the
+  intercepted rekey ciphertext, the encrypted message, and every derived
+  key sheet except the one actually used to send it). Try to recover the
+  message.
