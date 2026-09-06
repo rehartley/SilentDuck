@@ -104,6 +104,14 @@ public:
     // substitute for encode()'s own validation.
     static bool isAllowedInputChar(QChar ch);
 
+    // The straddling checkerboard's full alphabet, in a fixed display order
+    // (Roman letters, punctuation/control chars, digits, then Cyrillic) --
+    // the same set isAllowedInputChar() tests membership against, just
+    // spelled out as a string instead of a predicate. Meant for pasting into
+    // an interactive text-entry UI (TerminalEditor's F5) when the user can't
+    // recall how to type one of its more exotic characters.
+    static QString allowedInputChars();
+
     // Message from the most recent call. Cleared at the start of every call
     // below. NOTE: a call can succeed (return true / a non-null QString) and
     // still leave a message here -- e.g. the crypto succeeded but wiping a
@@ -133,13 +141,7 @@ public:
     // between the join side and the unjoin side so both derive the same new
     // keypad without ever putting the new keypad itself on the wire.
     // fileI/fileJ are wiped after use (unless keepKeyFilesAfterUse()).
-    //
-    // NOTE (found while porting, not fixed here -- see quacque_design.md):
-    // otp.py names the 25 output sheets differently between the two sides --
-    // join writes "<prefix>NN.otk" (no dash) while unjoin writes
-    // "<prefix>-NN.otk" (with a dash). That asymmetry is reproduced exactly
-    // below for behavioral parity with otp.py; it should be resolved at the
-    // source before this ships.
+    // Both sides write the 25 new sheets as "<prefix>-NNN.otk".
     bool joinKeys(const QString &fileI, const QString &fileJ,
                   const QString &combinedKeyFile, const QString &prefix);
     bool unjoinKeys(const QString &fileI, const QString &fileJ,
@@ -195,7 +197,7 @@ private:
     // ---- config state ----
     bool m_keepKeyFilesAfterUse = false;
     int  m_wipeRoundCount = 7;
-    bool m_autoInsertDigitShiftCode = false;
+    bool m_autoInsertDigitShiftCode = true;
     bool m_useMorseShorts = false;
     bool m_testingMode = false;
     int  m_randomDuplicates = 0;
@@ -212,13 +214,7 @@ private:
     QMap<QChar, QString> m_lat2number;
     QMap<QString, QChar> m_number2cyr;
     QMap<QChar, QString> m_cyr2number;
-    QString m_validChars;
     void buildTables();
-
-    // Single source of truth for m_validChars above and for the public
-    // isAllowedInputChar() -- kept as one function so the two can't drift
-    // out of sync with each other or with buildTables()'s tables.
-    static QString allowedInputChars();
 
     // ---- low-level digit-string arithmetic (add/subtract per-digit, mod 10,
     // no carry -- exactly otp.py's stringAdd()/stringSubtract()) ----

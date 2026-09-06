@@ -34,13 +34,25 @@
 class TerminalEditor
 {
 public:
+    // allowedChars mirrors pytextedit.py's editString(allowed_chars=...):
+    // empty (default) = no restriction; otherwise only characters in
+    // allowedChars (matched case-insensitively) can be typed, and a
+    // disallowed keystroke gets a beep() instead. F5 pastes allowedChars
+    // itself into the buffer, for anyone who can't recall how to type one of
+    // its more exotic characters -- documented in the F1 help overlay.
+    // OtpCli.cpp passes OTP::allowedInputChars() explicitly at its call
+    // sites, exactly as otp.py's readFile()/writeFile() pass validStr at
+    // otp.py:141 and otp.py:158 -- this class itself knows nothing about OTP.
+
     // Input mode: full-screen, empty buffer. F2 or Ctrl+S saves and
     // returns the buffer's text; ESC cancels and returns a null QString
     // (.isNull() == true).
-    static QString getText(const QString &title);
+    static QString getText(const QString &title, const QString &allowedChars = QString());
 
     // Display mode: full-screen, read-only, pre-filled with initialText.
     // Any key closes it. Never touches the filesystem, matching otp.py's
-    // EDITOR-as-output-argument behavior exactly.
-    static void showText(const QString &title, const QString &initialText);
+    // EDITOR-as-output-argument behavior exactly. allowedChars has no
+    // effect in this mode (read-only blocks all typed input) but is
+    // accepted for call-site symmetry with getText().
+    static void showText(const QString &title, const QString &initialText, const QString &allowedChars = QString());
 };

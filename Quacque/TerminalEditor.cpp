@@ -1,7 +1,5 @@
 #include "TerminalEditor.h"
 
-#include "OTP.h"
-
 #include <curses.h>
 
 #include <algorithm>
@@ -37,7 +35,20 @@ struct EditorState
     int topLine = 0;  // vertical scroll offset
     int leftCol = 0;  // horizontal scroll offset
     bool readOnly = false;
+    // Empty = unrestricted, matching pytextedit.py's allowed_chars=None.
+    // Set from the allowedChars argument to getText()/showText() -- see
+    // TerminalEditor.h.
+    QString allowedChars;
 };
+
+// Case-insensitive membership test against st.allowedChars; empty means no
+// restriction at all (every printable character is allowed).
+bool isCharAllowed(const EditorState &st, QChar ch)
+{
+    if (st.allowedChars.isEmpty())
+        return true;
+    return st.allowedChars.contains(ch.toUpper());
+}
 
 void clampCursor(EditorState &st)
 {
@@ -94,7 +105,7 @@ void draw(WINDOW *win, EditorState &st, const std::wstring &title)
     wattron(win, A_REVERSE);
     std::wstring status = st.readOnly
         ? std::wstring(L"[read only]  press any key to close")
-        : std::wstring(L"F2 or Ctrl+S: save & exit    ESC: cancel    Ctrl+Z: undo    Ctrl+Y: redo    F1: help");
+        : std::wstring(L"F2 or Ctrl+S: save & exit    ESC: cancel    Ctrl+Z: undo    Ctrl+Y: redo    F1: help    F5: paste alphabet");
     status.resize(maxX, L' ');
     mvwaddnwstr(win, maxY - 1, 0, status.c_str(), maxX);
     wattroff(win, A_REVERSE);
@@ -153,6 +164,7 @@ void showHelp(WINDOW *win)
         L"Enter             New line",
         L"Ctrl+Z / Ctrl+Y   Undo / redo",
         L"F1                This help",
+        L"F5                Paste allowed alphabet",
         L"",
         L"press any key to close",
     };
@@ -270,6 +282,40 @@ void moveWordRight(EditorState &st)
     st.cursorCol = col;
 }
 
+// Inserts text at the cursor, splitting on '\n' into new lines exactly like
+// pytextedit.py's TextBuffer.paste() does. Used by F5 to drop the
+// checkerboard's whole alphabet into the buffer -- see the KEY_F(5) case
+// below -- so a user who can't recall how to type one of its characters can
+// copy it out instead.
+void pasteText(EditorState &st, const std::wstring &text)
+{
+    if (text.empty())
+        return;
+    std::vector<std::wstring> parts;
+    size_t start = 0;
+    for (size_t i = 0; i <= text.size(); ++i) {
+        if (i == text.size() || text[i] == L'\n') {
+            parts.push_back(text.substr(start, i - start));
+            start = i + 1;
+        }
+    }
+    std::wstring &curLine = st.lines[st.cursorRow];
+    if (parts.size() == 1) {
+        curLine.insert(st.cursorCol, parts[0]);
+        st.cursorCol += static_cast<int>(parts[0].size());
+    } else {
+        std::wstring tail = curLine.substr(st.cursorCol);
+        curLine.resize(st.cursorCol);
+        curLine += parts[0];
+        for (size_t i = 1; i < parts.size(); ++i)
+            st.lines.insert(st.lines.begin() + st.cursorRow + static_cast<int>(i), parts[i]);
+        const int lastRow = st.cursorRow + static_cast<int>(parts.size()) - 1;
+        st.lines[lastRow] += tail;
+        st.cursorRow = lastRow;
+        st.cursorCol = static_cast<int>(parts.back().size());
+    }
+}
+
 void eraseAt(EditorState &st, int row, int col)
 {
     // shared backspace-at-(row,col) logic, used both for KEY_BACKSPACE and
@@ -366,6 +412,17 @@ EditorResult runEditorLoop(EditorState &st, const std::wstring &title)
                 result = EditorResult::Saved;
                 finished = true;
                 break;
+            case KEY_F(5): {
+                // Paste allowedChars itself, for anyone who can't recall how
+                // to type one of its more exotic characters -- same idea as
+                // pytextedit.py's F5.
+                if (!st.allowedChars.isEmpty()) {
+                    history.snapshotBefore(st, EditGroup::None);
+                    pasteText(st, toWStr(st.allowedChars));
+                    modified = true;
+                }
+                break;
+            }
             default:
                 break;
             }
@@ -394,12 +451,12 @@ EditorResult runEditorLoop(EditorState &st, const std::wstring &title)
                 history.snapshotBefore(st, EditGroup::Erase);
                 eraseAt(st, st.cursorRow, st.cursorCol);
                 modified = true;
-            } else if (OTP::isAllowedInputChar(QChar(static_cast<char16_t>(ch)))) {
-                // Only the straddling checkerboard's own alphabet (Roman +
-                // Cyrillic letters, digits, its punctuation set) is
-                // encodable at all -- reject anything else here rather
-                // than let it reach encode() and fail the whole message
-                // at encipher time.
+            } else if (isCharAllowed(st, QChar(static_cast<char16_t>(ch)))) {
+                // allowedChars gates what's typeable at all -- when set to
+                // OTP::allowedInputChars() (see OtpCli.cpp), this rejects
+                // anything outside the straddling checkerboard's own
+                // alphabet here rather than letting it reach encode() and
+                // fail the whole message at encipher time.
                 history.snapshotBefore(st, EditGroup::Insert);
                 st.lines[st.cursorRow].insert(st.cursorCol, 1, static_cast<wchar_t>(ch));
                 ++st.cursorCol;
@@ -417,10 +474,11 @@ EditorResult runEditorLoop(EditorState &st, const std::wstring &title)
 
 } // namespace
 
-QString TerminalEditor::getText(const QString &title)
+QString TerminalEditor::getText(const QString &title, const QString &allowedChars)
 {
     EditorState st;
     st.readOnly = false;
+    st.allowedChars = allowedChars;
     const EditorResult result = runEditorLoop(st, toWStr(title));
     if (result == EditorResult::Cancelled)
         return QString(); // null -- caller checks .isNull()
@@ -434,10 +492,11 @@ QString TerminalEditor::getText(const QString &title)
     return text;
 }
 
-void TerminalEditor::showText(const QString &title, const QString &initialText)
+void TerminalEditor::showText(const QString &title, const QString &initialText, const QString &allowedChars)
 {
     EditorState st;
     st.readOnly = true;
+    st.allowedChars = allowedChars; // no effect in read-only mode; see TerminalEditor.h
     st.lines.clear();
     for (const QString &part : initialText.split(QLatin1Char('\n')))
         st.lines.push_back(toWStr(part));

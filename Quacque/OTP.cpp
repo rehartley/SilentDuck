@@ -90,28 +90,43 @@ void OTP::buildTables()
     m_cyr2number.clear();
     for (auto it = m_number2cyr.cbegin(); it != m_number2cyr.cend(); ++it)
         m_cyr2number[it.value()] = it.key();
-
-    // otp.py's validStr: Roman letters, punctuation/control chars, digits,
-    // then the Cyrillic alphabet.
-    m_validChars = allowedInputChars();
 }
 
 QString OTP::allowedInputChars()
 {
-    QString chars = QStringLiteral("ABCDEFGHIJKLMNOPQRSTUVWXYZ?:@/~#., \n0123456789");
-    // The Cyrillic letters used by m_number2cyr above, spelled out via \u
-    // escapes for the same file-corruption-resistance reason documented in
-    // buildTables()'s comment. Kept as a plain literal (not derived from
-    // m_number2cyr) so this stays callable without an OTP instance.
-    static const char16_t cyrillic[] = {
-        0x0410, 0x0415, 0x0418, 0x041D, 0x041E, 0x0421, 0x0422,
-        0x0411, 0x0412, 0x0413, 0x0414, 0x0416, 0x0417, 0x0419, 0x041A, 0x041B, 0x041C,
-        0x041F, 0x0420, 0x0423, 0x0424, 0x0425, 0x0426, 0x0427, 0x0428, 0x0429, 0x042B,
-        0x042C, 0x042D, 0x042E, 0x042F,
-    };
-    for (char16_t cp : cyrillic)
-        chars += QChar(cp);
-    return chars;
+    // Mirrors otp.py's validRomanStr / validPunctStr / validDigitsStr /
+    // validCyrillicStr / validStr (otp.py:62-66): same four pieces, same
+    // concatenation order, kept as separately named strings here too so the
+    // two implementations stay easy to compare and can't quietly drift.
+    static const QString validRomanStr  = QStringLiteral("ABCDEFGHIJKLMNOPQRSTUVWXYZ");
+    static const QString validPunctStr  = QStringLiteral("?:@/~#., \n");
+    static const QString validDigitsStr = QStringLiteral("0123456789");
+
+    // otp.py's validCyrillicStr (otp.py:63) lists this alphabet in natural
+    // Cyrillic reading order (А Б В Г Д Е Ж З И...) since it's meant to be
+    // read/pasted as a cheat-sheet -- deliberately NOT the frequency-coded
+    // order buildTables()'s m_number2cyr table above uses (that one follows
+    // the checkerboard's digit codes 0-6/70-93, not the alphabet). Same 31
+    // letters either way (the Russian alphabet minus Ъ), just sorted here
+    // for display instead of by code. Spelled out via \u escapes for the
+    // same file-corruption-resistance reason documented in buildTables()'s
+    // comment; kept independent of m_number2cyr so this stays callable
+    // without an OTP instance.
+    static const QString validCyrillicStr = [] {
+        static const char16_t cyrillic[] = {
+            0x0410, 0x0411, 0x0412, 0x0413, 0x0414, 0x0415, 0x0416, 0x0417,
+            0x0418, 0x0419, 0x041A, 0x041B, 0x041C, 0x041D, 0x041E, 0x041F,
+            0x0420, 0x0421, 0x0422, 0x0423, 0x0424, 0x0425, 0x0426, 0x0427,
+            0x0428, 0x0429, 0x042B, 0x042C, 0x042D, 0x042E, 0x042F,
+        };
+        QString s;
+        for (char16_t cp : cyrillic)
+            s += QChar(cp);
+        return s;
+    }();
+
+    static const QString validStr = validRomanStr + validPunctStr + validDigitsStr + validCyrillicStr;
+    return validStr;
 }
 
 bool OTP::isAllowedInputChar(QChar ch)
@@ -122,9 +137,10 @@ bool OTP::isAllowedInputChar(QChar ch)
 
 bool OTP::stringValid(const QString &s) const
 {
-    const QString upper = s.toUpper();
-    for (const QChar &ch : upper) {
-        if (!m_validChars.contains(ch))
+    // isAllowedInputChar() already normalizes case itself, so no need to
+    // upper() s first here.
+    for (const QChar &ch : s) {
+        if (!isAllowedInputChar(ch))
             return false;
     }
     return true;

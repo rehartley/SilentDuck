@@ -68,12 +68,15 @@ QString makeTempFile(const QString &content, QStringList &tempFiles)
 // whatever was typed, staying entirely in memory, exactly like otp.py's
 // EDITOR sentinel. Anything else is read from that path. Null QString on
 // failure (unreadable file, or the editor was cancelled).
+//
+// Passes OTP::allowedInputChars() explicitly, exactly as otp.py's readFile()
+// passes validStr at otp.py:141.
 QString readMessageArg(const QString &path, const QString &title)
 {
     if (path.isNull())
         return QString();
     if (path == kEditorSentinel)
-        return TerminalEditor::getText(title); // null on cancel
+        return TerminalEditor::getText(title, OTP::allowedInputChars()); // null on cancel
 
     bool ok = true;
     const QString text = readTextFile(path, &ok);
@@ -87,12 +90,16 @@ QString readMessageArg(const QString &path, const QString &title)
 // Resolves a message-shaped OUTPUT argument (-o for encipher/decipher/
 // mergeMsg): "EDITOR" displays the text read-only and never touches disk,
 // exactly like otp.py's EDITOR sentinel. Anything else gets written there.
+//
+// Passes OTP::allowedInputChars() explicitly, exactly as otp.py's
+// writeFile() passes validStr at otp.py:158 (inert here since showText() is
+// read-only, but kept for call-site symmetry with readMessageArg() above).
 bool writeMessageArg(const QString &path, const QString &title, const QString &text)
 {
     if (path.isNull())
         return false;
     if (path == kEditorSentinel) {
-        TerminalEditor::showText(title, text);
+        TerminalEditor::showText(title, text, OTP::allowedInputChars());
         return true;
     }
     if (!writeTextFile(path, text)) {
@@ -118,7 +125,7 @@ QString resolveKeyInputArg(const QString &path, const QString &title, QStringLis
     if (path != kEditorSentinel)
         return path;
 
-    const QString typed = TerminalEditor::getText(title);
+    const QString typed = TerminalEditor::getText(title, OTP::allowedInputChars());
     if (typed.isNull())
         return QString();
 
@@ -126,6 +133,42 @@ QString resolveKeyInputArg(const QString &path, const QString &title, QStringLis
     if (tmpPath.isEmpty())
         std::cerr << "[FAIL] could not create a temporary file for EDITOR input\n";
     return tmpPath;
+}
+
+// Resolves the trailing key-file LIST argument for encipher/decipher
+// (whatever's left over in args.extra after -i/-o are consumed): each entry
+// that is exactly "EDITOR" opens the terminal editor and writes what's typed
+// into a fresh temp file (tracked in tempFiles for wiping later), exactly
+// like otp.py's loadKeys()/readFile() with its 'Key material' / 'Key
+// material N of M' desc labels (otp.py:921-929) -- so a run mixing a real
+// key file with a hand-typed one still gets a distinct, numbered title per
+// EDITOR screen. Anything else passes through unchanged. Returns an empty
+// list if any entry was cancelled -- the caller should treat that as fatal,
+// same as otp.py failing inside stringSubtract()/stringAdd() on a short key.
+QStringList resolveKeyListArg(const QStringList &keyFiles, QStringList &tempFiles)
+{
+    QStringList resolved;
+    const int n = keyFiles.size();
+    for (int i = 0; i < n; ++i) {
+        const QString &kfn = keyFiles.at(i);
+        if (kfn != kEditorSentinel) {
+            resolved.append(kfn);
+            continue;
+        }
+        const QString title = (n == 1)
+            ? QStringLiteral("Key material")
+            : QStringLiteral("Key material %1 of %2").arg(i + 1).arg(n);
+        const QString typed = TerminalEditor::getText(title, OTP::allowedInputChars());
+        if (typed.isNull())
+            return QStringList(); // cancelled
+        const QString tmpPath = makeTempFile(typed, tempFiles);
+        if (tmpPath.isEmpty()) {
+            std::cerr << "[FAIL] could not create a temporary file for EDITOR key input\n";
+            return QStringList();
+        }
+        resolved.append(tmpPath);
+    }
+    return resolved;
 }
 
 // Resolves a key-shaped OUTPUT argument (-o for join's combinedKeyFile, -c
@@ -148,7 +191,7 @@ void finalizeKeyOutputArg(const QString &originalPath, const QString &resolvedPa
     bool ok = true;
     const QString content = readTextFile(resolvedPath, &ok);
     if (ok)
-        TerminalEditor::showText(title, content);
+        TerminalEditor::showText(title, content, OTP::allowedInputChars());
 }
 
 // ============================================================================
@@ -359,12 +402,24 @@ int runEncipher(OTP &otp, const ParsedArgs &args)
         std::cerr << "[FAIL] no plaintext (missing -i, unreadable file, or EDITOR cancelled)\n";
         return 1;
     }
-    const QString cipherText = otp.encipher(plainText, args.extra);
-    if (cipherText.isNull())
+
+    QStringList tempFiles;
+    const QStringList keyFiles = resolveKeyListArg(args.extra, tempFiles);
+    if (keyFiles.isEmpty() && !args.extra.isEmpty()) {
+        std::cerr << "[FAIL] no key material (EDITOR cancelled)\n";
+        return 1;
+    }
+
+    const QString cipherText = otp.encipher(plainText, keyFiles);
+    if (cipherText.isNull()) {
+        otp.wipeFiles(tempFiles); // clean up any EDITOR-typed key temp file; encipher() failed before it could
         return reportResult(false, otp.lastError(), "");
+    }
     if (!writeMessageArg(args.parm.value(QStringLiteral("-o")), QStringLiteral("Ciphertext"), cipherText))
         return 1;
     wipeSourceFileIfReal(otp, iArg, args);
+    // encipher() above already wiped keyFiles (temp or real) on success --
+    // see OTP::encipher()'s wipeKeys() call -- so tempFiles needs no cleanup here.
     return reportResult(true, otp.lastError(), "message enciphered");
 }
 
@@ -376,12 +431,24 @@ int runDecipher(OTP &otp, const ParsedArgs &args)
         std::cerr << "[FAIL] no ciphertext (missing -i, unreadable file, or EDITOR cancelled)\n";
         return 1;
     }
-    const QString plainText = otp.decipher(cipherText, args.extra);
-    if (plainText.isNull())
+
+    QStringList tempFiles;
+    const QStringList keyFiles = resolveKeyListArg(args.extra, tempFiles);
+    if (keyFiles.isEmpty() && !args.extra.isEmpty()) {
+        std::cerr << "[FAIL] no key material (EDITOR cancelled)\n";
+        return 1;
+    }
+
+    const QString plainText = otp.decipher(cipherText, keyFiles);
+    if (plainText.isNull()) {
+        otp.wipeFiles(tempFiles); // clean up any EDITOR-typed key temp file; decipher() failed before it could
         return reportResult(false, otp.lastError(), "");
+    }
     if (!writeMessageArg(args.parm.value(QStringLiteral("-o")), QStringLiteral("Plaintext"), plainText))
         return 1;
     wipeSourceFileIfReal(otp, iArg, args);
+    // decipher() above already wiped keyFiles (temp or real) on success --
+    // see OTP::decipher()'s wipeKeys() call -- so tempFiles needs no cleanup here.
     return reportResult(true, otp.lastError(), "message deciphered");
 }
 
