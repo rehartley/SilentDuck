@@ -56,6 +56,15 @@ Please enjoy trying it out. You will find a few fun surprises along the way not 
 versionStr = 'v0.9h'
 
 # globals
+
+# the Roman and Cyrillic letters of the alphabet we will process, in uppercase:
+# 'ABCDEFGHIJKLMNOPQRSTUVWXYZ?:@/~#., \n0123456789АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЫЬЭЮЯ'
+validRomanStr = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+validCyrillicStr = 'АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЫЬЭЮЯ'
+validDigitsStr = '0123456789'
+validPunctStr = '?:@/~#., \n'
+validStr = validRomanStr + validPunctStr + validDigitsStr + validCyrillicStr 
+
 useMorseShorts = False
 keepKeyFilesAfterUse = False
 wipeRoundCount = 7
@@ -126,10 +135,28 @@ def die( s ):
     sys.exit(1)
 
 
-# read a file, return contents as a string
-def readFile( fn ):
+# read a file, return contents as a string.
+# desc labels the EDITOR screen when fn == 'EDITOR' (e.g. 'Plaintext',
+# 'Key sheet 1') so that a single command using EDITOR more than once (key,
+# input, and/or output) shows a distinct title on each screen instead of the
+# generic 'EDITOR' on all of them -- otherwise there's no way to tell which
+# blank screen is asking for what, and it's easy to type your message into
+# what was actually the key prompt (or leave the key prompt empty), which
+# then fails deep inside stringSubtract()/stringAdd() with a length-mismatch
+# error that gives no hint of the real cause.
+def readFile( fn, desc=None ):
+    theValidStr = None
+
+    if desc is not None:
+        if desc == 'Plaintext':
+            theValidStr = validStr
+        if desc == 'Ciphertext':
+            if useMorseShorts:
+                desc = 'Ciphertext(Morse cut)'
+                theValidStr = 'TAUV4E6BDN \n' # we are here
+
     if fn == 'EDITOR':
-        return pytextedit.editString( filename='EDITOR' )
+        return pytextedit.editString( filename=(desc if desc else 'EDITOR'), allowed_chars=theValidStr )
 
     tmp = ''
     try:
@@ -138,15 +165,15 @@ def readFile( fn ):
         f.close()
     except:
         die( 'Error reading file: ' + str(fn) )
-    
+
     return tmp
 
-# append string to end of file
-def writeFile( fn, s ):
+# append string to end of file. desc: see readFile() above.
+def writeFile( fn, s, desc='' ):
     global testingMode
 
     if fn == 'EDITOR':
-        pytextedit.editString( string=s, filename='EDITOR' )
+        pytextedit.editString( string=s, filename=(desc if desc else 'EDITOR'), allowed_chars=validStr )
         return
 
     if testingMode == True:
@@ -268,10 +295,6 @@ def fromMorseCut( s ):
     return tmp
 
 
-
-# list of roman and cyrillic letters of the alphabet we will process
-validStr = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ?:@/~#., \n0123456789АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЫЬЭЮЯ'
-
 # return true if all characters are in validStr above
 def stringValid( s ):
     s = s.upper()
@@ -292,8 +315,8 @@ def stringDigits( s ):
     return tmp
 
 
-def loadKeyPad( fn ):
-    tmp = readFile( fn )
+def loadKeyPad( fn, desc='' ):
+    tmp = readFile( fn, desc )
     tmp = stringDigits( tmp )
     return tmp
 
@@ -518,9 +541,10 @@ def stringAdd( a, b ):
     return tmp
 
 
-
 def stringSubtract( a, b ):
     if len(a) > len(b):
+        print( 'a:', a)
+        print( 'b:', b)
         die( 'stringSubtract( a, b ): len(a) > len(b) by ' + str( len(a)-len(b) ) + ' characters.' )
 
     tmp = ''
@@ -906,9 +930,11 @@ def do_keygen( prefix, zeroKeys=False ):
 
 def loadKeys( keyList ):
     key = ''
-    for k in keyList:
+    n = len( keyList )
+    for i, k in enumerate( keyList ):
         kfn = keyList[k]
-        key += readFile( kfn )
+        desc = 'Key material' if n == 1 else 'Key material ' + str(i+1) + ' of ' + str(n)
+        key += readFile( kfn, desc )
     key = stringDigits( key )
     return key
     
@@ -925,8 +951,8 @@ def wipeKeys( keyList ):
 
 def do_encipher( inputFilename, outputFilename, keyList ):
     key = loadKeys( keyList )
-    
-    inputTxt = readFile( inputFilename )
+
+    inputTxt = readFile( inputFilename, 'Plaintext' )
     inputTxt = inputTxt.upper()
     encodedTxt = encode( inputTxt )
     
@@ -941,8 +967,8 @@ def do_encipher( inputFilename, outputFilename, keyList ):
     cipherTxt = stringSubtract( encodedTxt, key ) # OPSEC: write key, then text
     
     cgTxt = codeGroups( toMorseCut( cipherTxt ) )
-    writeFile( outputFilename, cgTxt )
-    
+    writeFile( outputFilename, cgTxt, 'Ciphertext' )
+
     wipeKeys( keyList )  
 
     if keepKeyFilesAfterUse:
@@ -954,8 +980,8 @@ def do_encipher( inputFilename, outputFilename, keyList ):
 
 def do_decipher( inputFilename, outputFilename, keyList ):
     key = loadKeys( keyList )
-    
-    inputTxt = readFile( inputFilename )
+
+    inputTxt = readFile( inputFilename, 'Ciphertext' )
     inputTxt = fromMorseCut( inputTxt )
     inputTxt = stringDigits( inputTxt )
     
@@ -965,7 +991,7 @@ def do_decipher( inputFilename, outputFilename, keyList ):
     # dbg( codeGroups( clearTxt ) )
     
     decodedTxt = decode( clearTxt )
-    writeFile( outputFilename, decodedTxt )    
+    writeFile( outputFilename, decodedTxt, 'Plaintext' )
     wipeKeys( keyList )
 
     if keepKeyFilesAfterUse:
@@ -980,10 +1006,10 @@ def do_fakeMsg( cipherTextFile, plainTextFile, keyFile ):
     ciphertext
     '''
     # encode the plain text
-    msgP = encode( readFile( plainTextFile ) )
-    
+    msgP = encode( readFile( plainTextFile, 'Known plaintext' ) )
+
      #read the cipherText, convert from morse cut to digits
-    msgC = stringDigits( fromMorseCut( readFile( cipherTextFile ) ) )
+    msgC = stringDigits( fromMorseCut( readFile( cipherTextFile, 'Known ciphertext' ) ) )
     
     # compare lengths:
     if len( msgC ) != len( msgP ):
@@ -995,7 +1021,7 @@ def do_fakeMsg( cipherTextFile, plainTextFile, keyFile ):
     kStr = ''
     kStr = stringSubtract( msgP, msgC )
     kStr = codeGroups( kStr )
-    writeFile( keyFile, kStr )
+    writeFile( keyFile, kStr, 'Generated key' )
 
 
 # ############################################################################
@@ -1114,14 +1140,14 @@ this bit of code using an offline computer or dedicated device.
 '''
 
 def do_joinKeys( file_i, file_j, combinedKeyFile, prefix ):
-   
-    ki = loadKeyPad( file_i )
-   
+
+    ki = loadKeyPad( file_i, 'Key sheet 1' )
+
     if( len(ki) != SHEETSIZE ):
         dbg( str(len(ki)) + ', ki:' + ki )
         die( 'bad first key:')
-   
-    kj = loadKeyPad( file_j )
+
+    kj = loadKeyPad( file_j, 'Key sheet 2' )
    
     if( len(kj) != SHEETSIZE ):
         dbg( str(len(kj)) + ', ki:' + kj )
@@ -1214,7 +1240,7 @@ def do_joinKeys( file_i, file_j, combinedKeyFile, prefix ):
     # the message.  The combinedKeyFile is not a key file, but a table of keys
     # that will be used to generate the new random key for the next message.
 
-    writeFile( combinedKeyFile, codeGroups( newOtpTbl ) )
+    writeFile( combinedKeyFile, codeGroups( newOtpTbl ), 'Combined key table (send to recipient)' )
 
     newOtpTbl = None
 
@@ -1236,13 +1262,13 @@ def do_joinKeys( file_i, file_j, combinedKeyFile, prefix ):
 
 def do_unjoinKeys( file_i, file_j, combinedKeyFile, prefix ):
 
-    ki = loadKeyPad( file_i )
+    ki = loadKeyPad( file_i, 'Key sheet 1' )
 
     if( len(ki) != SHEETSIZE ):
         dbg( str(len(ki)) + ', ki:' + ki )
         die( 'bad first key:')
 
-    kj = loadKeyPad( file_j )
+    kj = loadKeyPad( file_j, 'Key sheet 2' )
 
     if( len(kj) != SHEETSIZE ):
         dbg( str(len(kj)) + ', kj:' + kj )
@@ -1313,7 +1339,7 @@ def do_unjoinKeys( file_i, file_j, combinedKeyFile, prefix ):
     keysB = None
 
     # load the ciphertext the sender transmitted: ct = K - rd, per row, concatenated
-    keyInput = loadKeyPad( combinedKeyFile )
+    keyInput = loadKeyPad( combinedKeyFile, 'Combined key table (received)' )
 
     if len(keyInput) != len(combinedKeys):
         die( 'combined key file length does not match the expected keypad length.' )
@@ -1774,4 +1800,6 @@ def main():
 # main()
     
 if __name__ == '__main__':
+    # arg = "otp.py -z -k -e -i EDITOR -o EDITOR EDITOR"
+    # sys.argv = [os.path.basename(sys.argv[0])] + arg.split()   # strip path from argv[0] for nicer usage messages
     main()
