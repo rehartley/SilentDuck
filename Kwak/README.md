@@ -14,8 +14,8 @@ exists as its own project.
   implementation (below).
 - **Git** — to clone this repository, and (Windows only) for the one-time
   fetch of PDCursesMod described next.
-- **Windows** — the "EDITOR" full-screen sentinel needs
-  [PDCursesMod](https://github.com/Bill-Gray/PDCursesMod) (pinned to
+- **Windows** — the "EDITOR" full-screen sentinel needs [Bill Gray's](https://github.com/Bill-Gray/PDCursesMod)
+  [PDCursesMod](https://github.com/rehartley/PDCursesMod) (pinned to
   `v4.5.4`); the Makefile/`build.bat` fetch it automatically on first build
   via a shallow `git clone` into `.pdcursesmod/` (gitignored, not vendored
   into this repo). Needs network access the first time you build.
