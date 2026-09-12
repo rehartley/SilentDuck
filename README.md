@@ -57,8 +57,7 @@ The same OTP logic exists in a few forms, each its own project:
 
 - **`otp.py`** — the original, this repository's reference implementation.
   Pure Python, no dependencies beyond the standard library.
-- **[Quacque](Quacque/quacque_design.md)** — a native Qt/C++ port of the
-  same engine, built as a standalone console tool.
+- **[Kwak](Kwak/README.md)** — a native C++ port of the same engine, built as a standalone console tool.
 
 How it works
 -------------
