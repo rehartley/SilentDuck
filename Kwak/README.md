@@ -136,5 +136,3 @@ Kwak/
 - [`../otp.py`](../otp.py) — the Python reference implementation; same
   flags, same on-disk formats, interoperable keys/ciphertext.
 - [`../README.md`](../README.md) — top-level project README.
-- [`kwak_design.md`](kwak_design.md) — full design rationale and open
-  questions.
