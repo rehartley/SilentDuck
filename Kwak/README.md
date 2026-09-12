@@ -3,9 +3,7 @@
 A standalone, dependency-free C++17 port of [`otp.py`](../otp.py)'s OTP
 (one-time pad) engine — just `g++`. Builds as **`otp`**
 (`otp.exe` on Windows), a command-line tool with the same flags, on-disk
-key/ciphertext formats, and behavior as the Python reference implementation. See
-[kwak_design.md](kwak_design.md) for the full design rationale and why this
-exists as its own project.
+key/ciphertext formats, and behavior as the Python reference implementation.
 
 ## Prerequisites
 
