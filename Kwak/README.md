@@ -20,8 +20,7 @@ key/ciphertext formats, and behavior as the Python reference implementation.
 - **Linux/macOS** — the system's real wide-character ncurses instead:
   e.g. `sudo apt install libncursesw5-dev` on Debian/Ubuntu,
   `sudo dnf install ncurses-devel` on Fedora, or `brew install ncurses` on
-  macOS. Nothing is fetched. *(Flagging honestly: this path hasn't
-  actually been built/tested yet — please report back if you try it.)*
+  macOS. Nothing is fetched.
 - **GNU Make** — optional, only for the `make` build below. The
   `build.sh`/`build.bat` scripts need nothing but the compiler itself.
 
