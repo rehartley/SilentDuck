@@ -5,7 +5,7 @@ Kwek is a Java 21 port of the SilentDuck OTP engine, built with nothing but
 started with [`otp.py`](../otp.py) (the Python reference implementation),
 continued with [Quacque](../Quacque/quacque_design.md) (a Qt/C++ port, kept
 behaviorally identical to `otp.py`, built to eventually feed a cross-platform
-Qt GUI), and then [Kwak](../Kwak/kwak_design.md) (a standalone C++17 port
+Qt GUI), and then [Kwak](../Kwak/README.md) (a standalone C++17 port
 with no Qt dependency at all, translated from Quacque rather than from
 `otp.py` directly). Kwek exists for anyone who wants the engine and CLI on
 the JVM, with no C++ toolchain at all.
