@@ -58,6 +58,7 @@ The same OTP logic exists in a few forms, each its own project:
 - **`otp.py`** — the original, this repository's reference implementation.
   Pure Python, no dependencies beyond the standard library.
 - **[Kwak](Kwak/README.md)** — a native C++ port of the same engine, built as a standalone console tool.
+- **[Kwek](Kwek/README.md)** - a Java 21 port of the same engine, built as a standalone console tool.
 
 How it works
 -------------
