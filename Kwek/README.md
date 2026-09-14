@@ -64,7 +64,7 @@ Kwek/
 ```
 
 A Lanterna-based `TerminalEditor.java` (the "EDITOR" sentinel) is planned
-but not yet written — see `kwek_design.md`.
+but not yet written — see [kwek_design.md](kwek_design.md).
 
 ## Related
 
