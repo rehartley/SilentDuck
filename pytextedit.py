@@ -846,10 +846,21 @@ class HelpScreen:
     ]
 
     @staticmethod
-    def show(win: 'curses.window') -> None:
+    def show(win: 'curses.window', allowed_chars: Optional[str] = None) -> None:
+        """
+        Display the help overlay.  When *allowed_chars* is given (the editor's
+        restricted-alphabet string), an extra line documents F5's paste
+        shortcut and shows the alphabet itself for reference.
+        """
+        lines = list(HelpScreen._LINES)
+        if allowed_chars:
+            lines.append('')
+            lines.append('  F5                Paste allowed alphabet')
+            lines.append(f'                    {allowed_chars}')
+
         max_h, max_w = win.getmaxyx()
-        box_w = max(len(l) for l in HelpScreen._LINES) + 4
-        box_h = len(HelpScreen._LINES) + 2
+        box_w = max(len(l) for l in lines) + 4
+        box_h = len(lines) + 2
         box_w = min(box_w, max_w - 2)
         box_h = min(box_h, max_h - 2)
         bx = max(0, (max_w - box_w) // 2)
@@ -869,7 +880,7 @@ class HelpScreen:
         except curses.error:
             pass
 
-        for i, line in enumerate(HelpScreen._LINES[:box_h - 2]):
+        for i, line in enumerate(lines[:box_h - 2]):
             attr    = attr_title if i == 0 else attr_text
             content = line[:box_w - 4].ljust(box_w - 4)
             try:
@@ -903,12 +914,21 @@ class _EditorApp:
                  origin: Tuple[int, int],
                  size: Optional[Tuple[int, int]],
                  use_system_clipboard: bool = False,
-                 color: str = 'green') -> None:
+                 color: str = 'green',
+                 allowed_chars: Optional[str] = None) -> None:
         self._scr          = stdscr
         self._buf          = buf
         self._filename     = filename
         self._use_sys_clip = use_system_clipboard
         self._oy, self._ox = origin
+        # Restrict typed characters to a subset alphabet (e.g. the letters of a
+        # straddling checkerboard).  Compared uppercase; None = no restriction.
+        # The original (ordered, as-passed) string is kept separately so F5 can
+        # paste it verbatim for anyone who can't recall how to type it.
+        self._allowed_chars_display: Optional[str] = allowed_chars or None
+        self._allowed_chars: Optional[set] = (
+            set(allowed_chars.upper()) if allowed_chars else None
+        )
         sh, sw         = stdscr.getmaxyx()
         self._h        = size[0] if size else sh
         self._w        = size[1] if size else sw
@@ -1090,8 +1110,18 @@ class _EditorApp:
 
         # ---- Help -------------------------------------------------------
         elif key == curses.KEY_F1:
-            HelpScreen.show(self._scr)
+            HelpScreen.show(self._scr, self._allowed_chars_display)
             dirty = False
+
+        # ---- Paste the allowed alphabet (F5) -----------------------------
+        # Handy when allowed_chars restricts input to an alphabet exotic to
+        # the user (e.g. a straddling checkerboard) and they can't recall
+        # how to type a given character but can copy it from the reference.
+        elif key == curses.KEY_F5:
+            if self._allowed_chars_display:
+                buf.paste(self._allowed_chars_display)
+            else:
+                dirty = False
 
         # ---- Find / Replace --------------------------------------------
         elif key == 6:                           # Ctrl+F
@@ -1268,7 +1298,12 @@ class _EditorApp:
 
         # ---- Printable characters --------------------------------------
         elif 32 <= key <= 126:
-            buf.insert_char(chr(key))
+            ch = chr(key)
+            if self._char_allowed(ch):
+                buf.insert_char(ch)
+            else:
+                self._invalid_char_beep()
+                dirty = False
 
         else:
             dirty = False   # unknown key: no change
@@ -1284,6 +1319,26 @@ class _EditorApp:
         curses.curs_set(0)
         self._findbar.run_replace(self._scr, self._buf, self.render)
         curses.curs_set(1)
+
+    # ------------------------------------------------------------------
+    # Restricted-alphabet input (e.g. straddling checkerboard characters)
+    # ------------------------------------------------------------------
+
+    def _char_allowed(self, ch: str) -> bool:
+        """True if *ch* may be typed.  Checked uppercase; None = unrestricted."""
+        if self._allowed_chars is None:
+            return True
+        return ch.upper() in self._allowed_chars
+
+    def _invalid_char_beep(self) -> None:
+        """
+        "Visual beep" for a keystroke outside the allowed alphabet — spies don't
+        get an audible beep, so flash the screen instead of ringing the bell.
+        """
+        try:
+            curses.flash()
+        except curses.error:
+            pass
 
     # ------------------------------------------------------------------
     # Bracketed-paste interception
@@ -1503,6 +1558,14 @@ class ConsoleTextEditor:
         color    : color scheme name (default 'green').
                    Black-bg: 'green' | 'amber' | 'white' | 'yellow'
                    Blue-bg:  'green-blue' | 'amber-blue' | 'white-blue' | 'yellow-blue'
+        allowed_chars : string of characters the editor will accept as typed
+                   input (e.g. a straddling checkerboard's alphabet); checked
+                   case-insensitively (compared uppercase). None (default) =
+                   no restriction. A disallowed keystroke triggers a "visual
+                   beep" (curses.flash()) instead of an audible one — spies
+                   don't get to make noise. Press F5 to paste allowed_chars
+                   itself into the text, for when its exotic alphabet is hard
+                   to recall how to type; also documented in the F1 help.
 
     Usage::
 
@@ -1526,7 +1589,8 @@ class ConsoleTextEditor:
                  y: Optional[int] = None,
                  w: Optional[int] = None,
                  h: Optional[int] = None,
-                 color: str = 'green') -> None:
+                 color: str = 'green',
+                 allowed_chars: Optional[str] = None) -> None:
         self._string   = string or ''
         self._filename = filename or ''
         self._x = x
@@ -1535,6 +1599,7 @@ class ConsoleTextEditor:
         self._h = h
         self.use_system_clipboard: bool = False
         self.color: str = color
+        self._allowed_chars: Optional[str] = allowed_chars
 
     # ------------------------------------------------------------------
     # Properties
@@ -1589,22 +1654,35 @@ class ConsoleTextEditor:
     def filename(self, value: str) -> None:
         self._filename = value or ''
 
+    @property
+    def allowed_chars(self) -> Optional[str]:
+        """Characters accepted as typed input (case-insensitive). None = unrestricted."""
+        return self._allowed_chars
+
+    @allowed_chars.setter
+    def allowed_chars(self, value: Optional[str]) -> None:
+        self._allowed_chars = value
+
     # ------------------------------------------------------------------
     # Main entry point
     # ------------------------------------------------------------------
 
     def editString(self, string: Optional[str] = None, *,
-                   color: Optional[str] = None) -> str:
+                   color: Optional[str] = None,
+                   allowed_chars: Optional[str] = None) -> str:
         """
         Open the curses editor and return the edited text.
 
         If *string* is provided it overrides the text set in the constructor.
         If *color* is provided it overrides the color scheme set in the constructor.
+        If *allowed_chars* is provided it overrides the restricted alphabet set
+        in the constructor (see the class docstring).
         x / y / w / h == None means use the full terminal dimensions.
         """
-        text         = string if string is not None else self._string
-        use_sys_clip = self.use_system_clipboard
-        color        = color if color is not None else self.color
+        text          = string if string is not None else self._string
+        use_sys_clip  = self.use_system_clipboard
+        color         = color if color is not None else self.color
+        allowed_chars = allowed_chars if allowed_chars is not None else self._allowed_chars
 
         result: List[str] = ['']   # mutable container for the closure
 
@@ -1622,7 +1700,8 @@ class ConsoleTextEditor:
             app      = _EditorApp(stdscr, buf, self._filename,
                                   (oy, ox), (height, width),
                                   use_system_clipboard=use_sys_clip,
-                                  color=color)
+                                  color=color,
+                                  allowed_chars=allowed_chars)
             result[0] = app.run()
 
         # Short escape-sequence timeout so ESC is detected without a 1-second delay.
@@ -1659,7 +1738,8 @@ def editString(string: Optional[str] = None, *,
                y: Optional[int] = None,
                w: Optional[int] = None,
                h: Optional[int] = None,
-               color: str = 'green') -> str:
+               color: str = 'green',
+               allowed_chars: Optional[str] = None) -> str:
     """
     Open a curses text editor and return the edited string.
 
@@ -1667,9 +1747,14 @@ def editString(string: Optional[str] = None, *,
 
         result = editString("hello world", filename="notes.txt")
         result = editString("hello", color='green-blue')
+
+        # Restrict input to a straddling checkerboard's alphabet; wrong
+        # keystrokes trigger a visual (non-auditory) flash instead of typing.
+        result = editString(filename="checkerboard", allowed_chars="ETAONRISBCDFGHJKLMPQUVWXYZ")
     """
     return ConsoleTextEditor(
-        string, filename=filename, x=x, y=y, w=w, h=h, color=color
+        string, filename=filename, x=x, y=y, w=w, h=h, color=color,
+        allowed_chars=allowed_chars,
     ).editString()
 
 

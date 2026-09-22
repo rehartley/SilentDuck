@@ -57,8 +57,15 @@ The same OTP logic exists in a few forms, each its own project:
 
 - **`otp.py`** — the original, this repository's reference implementation.
   Pure Python, no dependencies beyond the standard library.
-- **[Kwak](Kwak/README.md)** — a native C++ port of the same engine, built as a standalone console tool.
-- **[Kwek](Kwek/README.md)** - a Java 21 port of the same engine, built as a standalone console tool.
+- **[Quacque](Quacque/quacque_design.md)** — a native Qt/C++ port of the
+  same engine, built as a standalone console tool.
+- **[Kwak](Kwak/kwak_design.md)** — a standalone C++17 port with no Qt
+  dependency at all (translated from Quacque, not from `otp.py` directly)
+  — just `g++`, no CMake.
+- **[Kwek](Kwek/kwek_design.md)** — a Java 21 port (translated from Kwak,
+  not from `otp.py`/Quacque directly) — just `javac`, no Maven/Gradle. The
+  cipher engine and CLI are both ported and tested; the full-screen
+  "EDITOR" sentinel isn't implemented yet.
 
 How it works
 -------------

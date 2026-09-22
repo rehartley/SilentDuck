@@ -240,9 +240,11 @@ pages does not demonstrably move an attacker closer to the destroyed
 sheets, unlike a threshold scheme where more shares monotonically help.
 The only routes to those old messages remain: recovering the physically
 destroyed pages themselves (foreclosed if `wipeFile()` actually ran —
-[otp.py:1519-1564](otp.py#L1519-L1564)), a plaintext/crib attack on those
+[otp.py:1707-1752](otp.py#L1707-L1752)), a plaintext/crib attack on those
 specific old messages (outside this document's model), or brute force
-(computationally infeasible at these digit counts).
+(computationally infeasible at these digit counts). See Addendum 2, below,
+for what "actually ran" can and can't guarantee on the storage media
+SILENT DUCK actually runs on.
 
 **Question 2 — none of the captured keys help discover the missing
 ones?**
@@ -288,6 +290,79 @@ well-understood category of countermeasure (cover traffic) independent
 of OTP specifically, and is widely believed by open-source SIGINT
 historians — not confirmed by classified sources — to be part of why
 numbers stations kept such rigid schedules.
+
+## Addendum 2: what does "foreclosed if `wipeFile()` actually ran" actually guarantee?
+
+The addendum above treats destruction of a used sheet as a hard stop —
+once it's wiped, that route to the old plaintext is closed. That's true
+at the file-API level. It is not automatically true at the physical
+storage level, and the gap matters specifically because it's the storage
+media SILENT DUCK is meant to run on in the field (USB sticks, microSD
+cards, SSDs — flash, not spinning disk).
+
+`wipeFile()` ([otp.py:1707-1752](otp.py#L1707-L1752)) does the classic
+overwrite-based secure delete: open the file, write several passes of
+fixed byte patterns (`0xff`, `0x00`, a cycling pattern) across its full
+length, `fsync()` after each pass, then `os.remove()`. This model —
+"overwriting a file's bytes overwrites the storage cells that held the
+original bytes" — holds on a spinning disk, where a logical block address
+maps to one fixed physical location. It does not reliably hold on flash.
+
+**Why not.** NAND flash can only be *erased* at the block level (tens to
+hundreds of KB), not the page level (4KB, typically), and individual
+cells wear out over their program/erase lifetime and get retired. To
+manage this, every flash controller runs a Flash Translation Layer (FTL)
+that frequently redirects a logical overwrite to a *different*, already-
+erased physical page — often drawn from an internal spare/over-
+provisioned pool that is never exposed as an addressable LBA at all —
+rather than reprogramming the original cells in place. The old physical
+page is marked stale and its contents persist, unmapped from any
+filesystem-visible path, until the controller's own garbage collection
+gets around to erasing that block. `os.write()` + `os.fsync()` from
+`wipeFile()` tells the OS the data was written and flushed; it says
+nothing about which physical cells the FTL actually used, because that
+mapping is internal to the controller and never exposed to the host.
+
+**A partial mitigation, and its own limit.** Filling the entire visible
+capacity of the device with one large file before writing key material
+removes the large, easy version of this problem — there's no big pool of
+OS-visible free space for the FTL to scatter writes across. It does not
+remove the reserved over-provisioned pool, which exists below the
+host-visible LBA space on every functioning flash controller (needed for
+wear-leveling and bad-block substitution; a device with zero spare
+margin bricks itself at the first failing block) and is neither
+addressable, visible, nor fillable from any host-side operation, its
+size undisclosed by the vendor. So "the drive reports 100% full" bounds
+the exposure to that hidden, vendor-specific margin — smaller than "the
+whole free-space pool," but not demonstrably zero.
+
+**What this is and isn't claiming.** This section is not a finding
+against `otp.py` — there's no code-level flaw to fix here; the same
+gap exists for literally any application-level secure-delete on flash
+media, on any platform. It's an unverified, storage-layer caveat rather
+than a proven or tested result (unlike the rest of this document, this
+hasn't been checked against real hardware or controller documentation —
+flagged as open, not asserted), and it sits entirely outside the
+project's own stated threat model ("idiot-proof, not malicious-user-
+proof"): recovering the residual physical pages requires chip-off
+forensics — desoldering the flash package and reading raw NAND directly,
+bypassing the controller entirely — which is a well-resourced,
+tools-and-time adversary, not the lost-or-glanced-at-device case
+`wipeFile()` is actually meant to defend against.
+
+**The standard real-world fix, if this ever needs to move from
+acknowledged to closed:** stop relying on file-level overwrite for
+assurance at all, and put the field device's storage under full-disk
+encryption. Once the whole volume is ciphertext, an unerased physical
+remnant of a "deleted" pad file is just ciphertext under the volume key
+— ordinary and expected — and the actual secret needing reliable
+destruction shrinks to that one volume key, a problem far more tractable
+than erasing arbitrarily large key files from opaque flash. This isn't
+proposed as a required change, only noted as the direction to look if the
+open caveat above is ever worth closing rather than documenting. Worked
+out concretely — per-sheet sub-keys rather than one whole-pad key, so a
+consumed sheet is independently destroyable — in
+[pad_at_rest_encryption.md](pad_at_rest_encryption.md).
 
 ## Reproducing this
 

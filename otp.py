@@ -123,6 +123,15 @@ SHEETSIZE = DIGITSPERGROUP * GROUPSPERLINE * LINESPERPAGE
 PAGESPERPAD = 25
 PADSIZE = SHEETSIZE * PAGESPERPAD
 
+# "-kt": generate CIA TRIGON-size key sheets instead of the (shorter) default
+# above -- 8 groups of 5 digits per line, 40 lines per page, 1600 digits per
+# page, matching the historical sizing described in the comment above.
+# PAGESPERPAD (25) is unchanged; only the per-sheet size grows. Only affects
+# do_keygen() ("-g" / "-gz").
+generateTrigonKeys = False
+TRIGON_GROUPSPERLINE = 8
+TRIGON_LINESPERPAGE = 40
+
 
 _print_debug_msg_ = True
 
@@ -711,6 +720,128 @@ def init():
     tblSetup()
 
 
+# give the unprintable/whitespace table entries a readable name for the
+# reference tables printed by "-hh" (a literal space or newline is invisible
+# in a table cell otherwise).
+def displayChar( ch ):
+    if ch == '\n':
+        return '<newline>'
+    if ch == ' ':
+        return '<space>'
+    return ch
+
+
+# render a "code = letter" reference table, sorted by code (single digits
+# before double digits, then numerically), wrapped after 'columns' entries
+# per line.
+def formatCodeLetterTable( number2letterTbl, columns=5 ):
+    items = sorted( number2letterTbl.items(), key=lambda kv: (len(kv[0]), kv[0]) )
+    lines = []
+    row = []
+    for code, ch in items:
+        row.append( '{:>2} = {}'.format( code, displayChar(ch) ) )
+        if len(row) == columns:
+            lines.append( '  '.join(row) )
+            row = []
+    if row:
+        lines.append( '  '.join(row) )
+    return '\n'.join(lines)
+
+
+# render a "letter = code" reference table -- the inverse of
+# formatCodeLetterTable() above -- sorted alphabetically by letter.
+def formatLetterCodeTable( number2letterTbl, columns=5 ):
+    items = sorted( ( (ch, code) for code, ch in number2letterTbl.items() ), key=lambda kv: kv[0] )
+    lines = []
+    row = []
+    for ch, code in items:
+        row.append( '{} = {:>2}'.format( displayChar(ch), code ) )
+        if len(row) == columns:
+            lines.append( '  '.join(row) )
+            row = []
+    if row:
+        lines.append( '  '.join(row) )
+    return '\n'.join(lines)
+
+
+# render the Morse cut shorts table: digit -> letter (morseCutLetter) or
+# letter -> digit (morseCutNumber) substituted for easier transmission when
+# "-z" / useMorseShorts is on.
+def formatMorseTable( tbl=morseCutLetter, columns=5 ):
+    items = sorted( tbl.items(), key=lambda kv: kv[0] )
+    lines = []
+    row = []
+    for key, val in items:
+        row.append( '{} = {}'.format( key, val ) )
+        if len(row) == columns:
+            lines.append( '  '.join(row) )
+            row = []
+    if row:
+        lines.append( '  '.join(row) )
+    return '\n'.join(lines)
+
+
+# Standard International Morse Code, reference only -- covers the ten digits
+# plus the specific eight letters morseCutLetter substitutes in for a digit
+# ('4' and '6' are left as themselves, so no letter entry is needed for
+# those). Not used by toMorseCut()/fromMorseCut() above, which only ever
+# substitute one character for another and never touch actual dot/dash
+# sequences -- this exists purely so formatMorseToCutTable() below can show
+# why the substitution saves time on the wire (every digit's own Morse code
+# is a full five symbols; its cut substitute is often much shorter).
+morseCodeDigits = { '0':'-----', '1':'.----', '2':'..---', '3':'...--', '4':'....-',
+                    '5':'.....', '6':'-....', '7':'--...', '8':'---..', '9':'----.' }
+
+morseCodeLetters = { 'A':'.-', 'B':'-...', 'D':'-..', 'E':'.', 'N':'-.', 'T':'-', 'U':'..-', 'V':'...-' }
+
+
+# render the "digit's own Morse code -> Morse cut shorts letter's (shorter)
+# Morse code" table, showing at a glance why each substitution is worth it.
+def formatMorseToCutTable():
+    header = '{:<5} {:<7} {:<4} {}'.format( 'Digit', 'Morse', 'Cut', 'Cut Morse' )
+    rule   = '{:<5} {:<7} {:<4} {}'.format( '-----', '-----', '---', '---------' )
+    lines = [ header, rule ]
+    for digit in sorted( morseCutLetter ):
+        cutLetter = morseCutLetter[ digit ]
+        cutMorse = morseCodeLetters.get( cutLetter, morseCodeDigits.get( cutLetter ) )
+        lines.append( '{:<5} {:<7} {:<4} {}'.format( digit, morseCodeDigits[digit], cutLetter, cutMorse ) )
+    return '\n'.join(lines)
+
+
+def referenceTablesStr():
+    return '''
+
+*********************************************************
+* REFERENCE TABLES                                      *
+*********************************************************
+
+These are the straddling-checkerboard digit-code tables used by encode()/decode()
+(Roman and Cyrillic), plus the Morse cut shorts substitution used when "-z" is on.
+Kept here for quick lookup while working through a message by hand.
+
+Roman: digit-code -> letter
+''' + formatCodeLetterTable( number2latletterTbl ) + '''
+
+Roman: letter -> digit-code
+''' + formatLetterCodeTable( number2latletterTbl ) + '''
+
+Cyrillic: digit-code -> letter
+''' + formatCodeLetterTable( number2cyrletterTbl ) + '''
+
+Cyrillic: letter -> digit-code
+''' + formatLetterCodeTable( number2cyrletterTbl ) + '''
+
+Morse cut shorts: digit -> letter
+''' + formatMorseTable( morseCutLetter ) + '''
+
+Morse cut shorts: letter -> digit
+''' + formatMorseTable( morseCutNumber ) + '''
+
+Morse -> Morse cut shorts (each digit's own Morse code vs. its shorter substitute)
+''' + formatMorseToCutTable() + '''
+'''
+
+
 # ####################################################################
 # command processing starts here
 
@@ -726,6 +857,7 @@ def do_brief_help():
 -z option: turn on use of More Shorts
 -t option: turn on testing mode to inhibit modifying the file system (no write, delete, etc.)
 -k keep input files after use to avoid auto-destruction
+-kt generate CIA TRIGON-size key sheets with -g/-gz (8 groups of 5 digits x 40 lines, 1600 digits/page) instead of the default (shorter) sheet size
 -n throttle entropy consumption sleeping for 'n' seconds after every 25 digits.
 -r set number of rounds for file wiping (writes 0, 1, random bits)
 -q specify number of times random data added to itself before return
@@ -828,6 +960,12 @@ otp -t ...
 # -k keep key files after use
 otp -k .....
 
+# -kt generate CIA TRIGON-size key sheets with -g/-gz: 8 groups of 5 digits
+# across, 40 lines down per page (1600 digits/page) instead of the default
+# (shorter) sheet size. PAGESPERPAD (25 pages) is unchanged.
+otp -g -kt -y keys/XX123
+otp -gz -kt -y keys/XX123
+
 # -n throttle entropy consumption sleeping for 'n' seconds after every 25 digits.
 # Have non-networking tasks running in backrgound to geneerate entropy.
 # Run the Linux command: "watch cat /proc/sys/kernel/random/entropy_avail" to track estimated entropy levels
@@ -885,6 +1023,8 @@ otp -b -i input1.otk -a input2.otk -c combined -y keyPrefix
 otp -w splitA/* keys/* *.ot? *.txt
 '''
 
+    helpStr += referenceTablesStr()
+
     die( helpStr )
 
 
@@ -908,11 +1048,24 @@ def do_keygen( prefix, zeroKeys=False ):
     global PAGESPERPAD # = 100 # 25
     global PADSIZE # = SHEETSIZE * PAGESPERPAD
 
+    global generateTrigonKeys
+
+    # "-kt": CIA TRIGON-size sheets (8 groups x 40 lines, 1600 digits/page)
+    # instead of the default (shorter) sheet size above.
+    if generateTrigonKeys:
+        groupsPerLine = TRIGON_GROUPSPERLINE
+        linesPerPage = TRIGON_LINESPERPAGE
+    else:
+        groupsPerLine = GROUPSPERLINE
+        linesPerPage = LINESPERPAGE
+
+    sheetSize = DIGITSPERGROUP * groupsPerLine * linesPerPage
+
     for x in range( 1, 1 + PAGESPERPAD ):
         fn = prefix + '-' + str( "{:03d}".format(x) ) + '.otk'
 
         if zeroKeys:
-            tmp = '0' * SHEETSIZE
+            tmp = '0' * sheetSize
         else:
             '''
             Lets hope there will be enough entropy inserted into the random
@@ -921,11 +1074,11 @@ def do_keygen( prefix, zeroKeys=False ):
             enough, and overlayed / whitened enough by other data overlaid
             on top of it.
             '''
-            tmp = '0' * SHEETSIZE
+            tmp = '0' * sheetSize
             for i in range( 1 + RANDOM_DUPLICATES ):
-                tmp = stringAdd( tmp, randDigits( SHEETSIZE ) )
+                tmp = stringAdd( tmp, randDigits( sheetSize ) )
 
-        writeFile( fn, codeGroups( tmp ) )
+        writeFile( fn, codeGroups( tmp, groupsPerLine=groupsPerLine, linesPerPad=linesPerPage ) )
 
 
 def loadKeys( keyList ):
@@ -1614,6 +1767,7 @@ def process_args():
     global useMorseShorts
     global RANDOM_DUPLICATES
     global keepKeyFilesAfterUse
+    global generateTrigonKeys
     global wipeRoundCount
     global entropyGatheringSleepTime
     global testingMode
@@ -1678,9 +1832,11 @@ def process_args():
     while (x < argc):
         a = argv[x]
         
-        if a == '-k':   # 
+        if a == '-k':   #
             dbg( 'ATTENTION!!! Keys must be deleted when used to maintain OPSEC!!!!' )
             keepKeyFilesAfterUse = True
+        elif a == '-kt':
+            generateTrigonKeys = True
         elif a == '-z':
             useMorseShorts = True
         elif a == "-t":

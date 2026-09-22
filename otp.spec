@@ -2,7 +2,7 @@
 
 
 a = Analysis(
-    ['otp.py'],
+    ['otp_wrapper.py'],
     pathex=[],
     binaries=[],
     datas=[],

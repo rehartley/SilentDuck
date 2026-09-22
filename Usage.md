@@ -41,7 +41,7 @@ This repository contains `otp.py`, a Python implementation of a one-time pad (OT
 | `-e` | `-i in -o out KEYFILE...` | Encipher: encode `in`, subtract key digits, write code groups to `out`; wipes `in` and the key files afterward (unless `-k`). |
 | `-d` | `-i in -o out KEYFILE...` | Decipher: add key digits to `in`, decode back to letters, write to `out`; wipes `in` and the key files afterward (unless `-k`). |
 | `-f` | `-c ciphertext -p plaintext -y keyfile` | Derive a key file that makes `plaintext`'s encoding match the given `ciphertext`. |
-| `-j` | `-i key1 -a key2 -o combined -y prefix` | Combine two OTP sheets into a new 25-sheet keypad: writes an encrypted `combined` file (to send to the recipient) and the new cleartext keypad (`prefix##.otk`) to use locally. |
+| `-j` | `-i key1 -a key2 -o combined -y prefix` | Combine two OTP sheets into a new 25-sheet keypad: writes an encrypted `combined` file (to send to the recipient) and the new cleartext keypad (`prefix-001.otk` … `prefix-025.otk`) to use locally. |
 | `-u` | `-i key1 -a key2 -c combined -y prefix` | Recover a keypad on the recipient's side from their two sheets and the received `combined` file; wipes `key1`/`key2` afterward (unless `-k`). |
 | `-s` | `-i in -l min -x max PREFIX` | Split a message into secret-shares such that any `min` of `max` shares reconstruct it; writes one file per share/combination under `PREFIX`; wipes `in` afterward (unless `-k`). |
 | `-m` | `-o out FILE...` | Merge previously split shares back into the original message. |
