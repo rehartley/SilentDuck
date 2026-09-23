@@ -104,8 +104,8 @@ on the analogy alone — see Reproducing this, below.
   independently derives their own unrelated pad. This scales to a
   hundred agents in three countries exactly as well as it scales to one.
 - **Minimal field footprint per agent.** Each agent only ever needs to
-  carry their own 500 digits of `ki`/`kj` — small enough to memorize,
-  conceal, or destroy quickly — to turn openly-broadcast noise into a
+  carry their own 500 digits of `ki`/`kj` — small enough to conceal,
+  or destroy quickly — to turn openly-broadcast noise into a
   full 25-sheet working pad, without ever meeting HQ again.
 - **This is a plausible fit for how broadcast numbers stations actually
   behave**: unaddressed, heard by everyone, with the individualization
