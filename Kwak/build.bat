@@ -29,7 +29,11 @@ rem Windows can resolve that dependency to a DIFFERENT, incompatible copy of
 rem the DLL at runtime than the one this was actually built against --
 rem symptom: "Entry Point Not Found" when just double-clicking the exe.
 rem Static linking removes the dependency entirely -- see kwak_design.md.
-g++ -std=c++17 -Wall -Wextra -O2 -I.pdcursesmod -DPDC_WIDE -DPDC_FORCE_UTF8 src\*.cpp *.o -o otp.exe -static -static-libgcc -static-libstdc++ -lwinmm -lbcrypt
+rem
+rem -lstdc++fs: on GCC < 9 (Strawberry's bundled MinGW is 8.3.0),
+rem std::filesystem lives in a separate archive from the rest of libstdc++ --
+rem otherwise ld fails with "undefined reference to std::filesystem::...".
+g++ -std=c++17 -Wall -Wextra -O2 -I.pdcursesmod -DPDC_WIDE -DPDC_FORCE_UTF8 src\*.cpp *.o -o otp.exe -static -static-libgcc -static-libstdc++ -lwinmm -lbcrypt -lstdc++fs
 if errorlevel 1 exit /b 1
 
 del *.o >nul 2>&1

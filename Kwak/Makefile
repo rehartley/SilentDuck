@@ -43,7 +43,10 @@ TARGET        := otp.exe
 PDCURSES_TAG  := v4.5.4
 PDCURSES_DIR  := .pdcursesmod
 CURSES_CFLAGS := -I$(PDCURSES_DIR) -DPDC_WIDE -DPDC_FORCE_UTF8
-CURSES_LIBS   := -lwinmm -lbcrypt
+# -lstdc++fs: on GCC < 9 (Strawberry's bundled MinGW is 8.3.0), std::filesystem
+# lives in a separate archive from the rest of libstdc++ -- otherwise ld fails
+# with "undefined reference to std::filesystem::...".
+CURSES_LIBS   := -lwinmm -lbcrypt -lstdc++fs
 # Static-link the MinGW runtime itself (libgcc/libstdc++/libwinpthread), not
 # just PDCursesMod/winmm/bcrypt. Without this, otp.exe keeps a dynamic
 # dependency on libstdc++-6.dll etc., and on a machine with more than one
