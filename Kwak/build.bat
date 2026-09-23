@@ -36,6 +36,12 @@ rem otherwise ld fails with "undefined reference to std::filesystem::...".
 g++ -std=c++17 -Wall -Wextra -O2 -I.pdcursesmod -DPDC_WIDE -DPDC_FORCE_UTF8 src\*.cpp *.o -o otp.exe -static -static-libgcc -static-libstdc++ -lwinmm -lbcrypt -lstdc++fs
 if errorlevel 1 exit /b 1
 
+rem Strip debug symbols now that the build has succeeded -- static linking
+rem (above) pulls the whole MinGW runtime into otp.exe, and unstripped that
+rem carries a lot of symbol/debug-info weight for a binary nobody steps a
+rem debugger through in the field.
+strip otp.exe
+
 del *.o >nul 2>&1
 
 echo Built: otp.exe

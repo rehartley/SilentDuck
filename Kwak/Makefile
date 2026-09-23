@@ -76,6 +76,7 @@ all: $(TARGET)
 
 $(TARGET): $(OBJECTS)
 	$(CXX) $(CXXFLAGS) -o $@ $(OBJECTS) $(LDFLAGS)
+	strip $@
 
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp
 	-mkdir $(OBJ_DIR)
@@ -117,6 +118,7 @@ PDCURSES_OBJ := $(patsubst $(PDCURSES_DIR)/pdcurses/%.c,$(OBJ_DIR)/pdcursesmod/p
 
 $(TARGET): $(OBJECTS) $(PDCURSES_OBJ)
 	$(CXX) $(CXXFLAGS) -o $@ $(OBJECTS) $(PDCURSES_OBJ) $(LDFLAGS)
+	strip $@
 
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp
 	-mkdir $(OBJ_DIR)
