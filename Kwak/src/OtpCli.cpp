@@ -444,8 +444,13 @@ int runEncipher(OTP &otp, const ParsedArgs &args)
 
     const std::optional<std::u32string> cipherText = otp.encipher(*plainText, keyFiles);
     if (!cipherText) {
+        // Capture the real failure (e.g. "not enough key material") before
+        // wipeFiles() below -- it unconditionally clears lastError(), even
+        // when tempFiles is empty and there's nothing to wipe, which would
+        // otherwise silently swallow the message this run is failing on.
+        const std::string err = otp.lastError();
         otp.wipeFiles(tempFiles); // clean up any EDITOR-typed key temp file; encipher() failed before it could
-        return reportResult(false, otp.lastError(), "");
+        return reportResult(false, err, "");
     }
     if (!writeMessageArg(args.parm.at("-o"), utf8::decode("Ciphertext"), *cipherText))
         return 1;
@@ -473,8 +478,11 @@ int runDecipher(OTP &otp, const ParsedArgs &args)
 
     const std::optional<std::u32string> plainText = otp.decipher(*cipherText, keyFiles);
     if (!plainText) {
+        // See the matching comment in runEncipher() above -- capture the
+        // real failure before wipeFiles() clears it.
+        const std::string err = otp.lastError();
         otp.wipeFiles(tempFiles); // clean up any EDITOR-typed key temp file; decipher() failed before it could
-        return reportResult(false, otp.lastError(), "");
+        return reportResult(false, err, "");
     }
     if (!writeMessageArg(args.parm.at("-o"), utf8::decode("Plaintext"), *plainText))
         return 1;
@@ -504,9 +512,14 @@ int runFakeMsg(OTP &otp, const ParsedArgs &args)
     const bool ok = otp.generateKeyForKnownPlaintext(*plainText, *cipherText, keyOut);
     if (ok)
         finalizeKeyOutputArg(yArg, keyOut, utf8::decode("Generated key"));
+    // wipeFiles() below unconditionally clears lastError(), so a failure
+    // reason set by the call above wouldn't survive it -- capture it first.
+    // On success, keep reading lastError() after the wipe so a temp-file
+    // wipe failure still surfaces as a [WARN].
+    const std::string errorBeforeWipe = otp.lastError();
     if (!tempFiles.empty())
         otp.wipeFiles(tempFiles);
-    return reportResult(ok, otp.lastError(), "key generated for known plaintext/ciphertext pair");
+    return reportResult(ok, ok ? otp.lastError() : errorBeforeWipe, "key generated for known plaintext/ciphertext pair");
 }
 
 int runJoinKeys(OTP &otp, const ParsedArgs &args)
@@ -531,9 +544,12 @@ int runJoinKeys(OTP &otp, const ParsedArgs &args)
     } else {
         std::cerr << "[FAIL] missing or cancelled -i/-a/-o argument\n";
     }
+    // See runFakeMsg()'s matching comment: wipeFiles() below always clears
+    // lastError(), so a failure reason must be captured before it runs.
+    const std::string errorBeforeWipe = otp.lastError();
     if (!tempFiles.empty())
         otp.wipeFiles(tempFiles);
-    return reportResult(ok, otp.lastError(), "new keypad joined");
+    return reportResult(ok, ok ? otp.lastError() : errorBeforeWipe, "new keypad joined");
 }
 
 int runUnjoinKeys(OTP &otp, const ParsedArgs &args)
@@ -554,9 +570,12 @@ int runUnjoinKeys(OTP &otp, const ParsedArgs &args)
         ok = otp.unjoinKeys(fileI, fileJ, combinedIn, prefix);
     else
         std::cerr << "[FAIL] missing or cancelled -i/-a/-c argument\n";
+    // See runFakeMsg()'s matching comment: wipeFiles() below always clears
+    // lastError(), so a failure reason must be captured before it runs.
+    const std::string errorBeforeWipe = otp.lastError();
     if (!tempFiles.empty())
         otp.wipeFiles(tempFiles);
-    return reportResult(ok, otp.lastError(), "keypad recovered");
+    return reportResult(ok, ok ? otp.lastError() : errorBeforeWipe, "keypad recovered");
 }
 
 int runSplitMsg(OTP &otp, const ParsedArgs &args)
@@ -629,9 +648,12 @@ int runCombineStreams(OTP &otp, const ParsedArgs &args)
     } else {
         std::cerr << "[FAIL] missing or cancelled -i/-a argument\n";
     }
+    // See runFakeMsg()'s matching comment: wipeFiles() below always clears
+    // lastError(), so a failure reason must be captured before it runs.
+    const std::string errorBeforeWipe = otp.lastError();
     if (!tempFiles.empty())
         otp.wipeFiles(tempFiles);
-    return reportResult(ok, otp.lastError(), "streams combined");
+    return reportResult(ok, ok ? otp.lastError() : errorBeforeWipe, "streams combined");
 }
 
 int runWipe(OTP &otp, const ParsedArgs &args)
