@@ -1,0 +1,699 @@
+<html>
+    <!--
+         Silent Duck (SD) one-time pad (OTP) cipher, in HTML and JavaScript.
+
+         A single-file, offline, browser-based otp cipher based on TRIGON
+         This enciphers / deciphers only -- NO key generation.
+         
+         Author: Robert Hartley
+         Generated: October 2024
+    -->
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+        <title>Silent Duck v0.9</title>
+    </head>
+
+    <body onload="doOnload()">
+        <h2>Silent Duck</h2>
+        <i>One-time pad cipher. No key generation &mdash; paste your own key material consisting of digits and white space.</i>
+        <p></p>
+
+        <label>Text: <i>plaintext to encipher, or ciphertext to decipher</i></label><br>
+        <textarea id="textTA" cols="55" rows="6" style="font-family:monospace"></textarea>
+        <p></p>
+
+        <label>Keys: <i>OTP digit material (whitespace is ignored)</i></label><br>
+        <textarea id="keysTA" cols="55" rows="6" style="font-family:monospace"></textarea>
+        <p></p>
+
+        <label>
+            <input id="morseCB" type="checkbox"> Morse shorts
+        </label>
+        <i>(ciphertext only; the key is always plain digits)</i>
+        <p></p>
+
+        <button onclick="doEncipher()">Encipher</button>
+        <button onclick="doDecipher()">Decipher</button>
+        <p></p>
+
+        <label>Output:</label><br>
+        <textarea id="outputTA" cols="55" rows="10" style="font-family:monospace" tabindex="-1" readonly="readonly"></textarea>
+        <p></p>
+
+        <label>Log / Status:</label><br>
+        <textarea id="loggingTA" cols="55" rows="5" style="font-family:monospace" tabindex="-1" readonly="readonly"></textarea>
+        <p></p>
+
+        <i>Silent Duck &mdash; manual OTP procedure.</i>
+
+        <script>
+
+            // ------------------------------------------------------------------
+            // Globals - built once in doOnload().
+            // ------------------------------------------------------------------
+
+            var validStr;                  // every character encode() will accept
+            var ignoreChars;               // whitespace skipped by the Morse maps
+
+            var digitCode;                 // '94' straddling-checkerboard digit shift
+            var numberCodes;               // the ten doubled digit pairs '00'..'99'
+
+            var number2latletterTbl;       // code  -> Roman letter
+            var number2cyrletterTbl;       // code  -> Cyrillic letter
+            var latletter2numberTbl;       // Roman letter -> code (inverse)
+            var cyrletter2numberTbl;       // Cyrillic letter -> code (inverse)
+
+            var morseCutLetter;            // digit  -> Morse cut letter
+            var morseCutNumber;            // Morse cut letter -> digit
+
+            var useMorseShorts;            // read from the checkbox at each run
+
+            var autoInsertDigitShiftCode;  // otp.py default: auto-bracket digit runs
+
+            // output layout, matching otp.py (DIGITSPERGROUP/GROUPSPERLINE/LINESPERPAGE)
+            var DIGITSPERGROUP;
+            var GROUPSPERLINE;
+            var LINESPERPAGE;
+
+
+            function doOnload()
+            {
+                var validRomanStr    = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+                var validCyrillicStr = "АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЫЬЭЮЯ";
+                var validDigitsStr   = "0123456789";
+                var validPunctStr    = "?:@/~#., \n";
+
+                validStr = validRomanStr + validPunctStr + validDigitsStr + validCyrillicStr;
+
+                ignoreChars = " \n";
+
+                digitCode   = "94";
+                numberCodes = [ "00","11","22","33","44","55","66","77","88","99" ];
+
+                autoInsertDigitShiftCode = true;
+
+                DIGITSPERGROUP = 5;
+                GROUPSPERLINE  = 5;
+                LINESPERPAGE   = 10;
+
+                // code -> Roman letter.  '89' is intentionally unassigned.
+                number2latletterTbl = {
+                    "0":"A", "1":"E", "2":"N", "3":"R", "4":"O", "5":"I", "6":"T",
+                    "70":"B", "71":"C", "72":"G", "73":"D", "74":"F",
+                    "75":"H", "76":"J", "77":"K", "78":"L", "79":"M",
+                    "80":"P", "81":"Q", "82":"S", "83":"U", "84":"V",
+                    "85":"W", "86":"X", "87":"Y", "88":"Z",
+                    "90":"?", "91":":", "92":"@", "93":"/",
+                    "94":"#", "95":".", "96":",", "97":"\n", "98":" ", "99":"~" };
+
+                // code -> Cyrillic letter.  94..99 match the Roman table.
+                number2cyrletterTbl = {
+                    "0":"А", "1":"Е", "2":"И", "3":"Н", "4":"О", "5":"С", "6":"Т",
+                    "70":"Б", "71":"В", "72":"Г", "73":"Д", "74":"Ж",
+                    "75":"З", "76":"Й", "77":"К", "78":"Л", "79":"М",
+                    "80":"П", "81":"Р", "82":"У", "83":"Ф", "84":"Х",
+                    "85":"Ц", "86":"Ч", "87":"Ш", "88":"Щ", "89":"Ы",
+                    "90":"Ь", "91":"Э", "92":"Ю", "93":"Я",
+                    "94":"#", "95":".", "96":",", "97":"\n", "98":" ", "99":"~" };
+
+                latletter2numberTbl = invertTable( number2latletterTbl );
+                cyrletter2numberTbl = invertTable( number2cyrletterTbl );
+
+                // digit <-> Morse cut letter (4 and 6 map to themselves)
+                morseCutLetter = {
+                    "0":"T", "1":"A", "2":"U", "3":"V", "4":"4",
+                    "5":"E", "6":"6", "7":"B", "8":"D", "9":"N" };
+                morseCutNumber = {
+                    "T":"0", "A":"1", "U":"2", "V":"3", "4":"4",
+                    "E":"5", "6":"6", "B":"7", "D":"8", "N":"9" };
+
+                doLog( "Ready." );
+            }
+
+            // build the code->letter inverse so the two directions can never
+            // drift apart by hand-transcription.
+            function invertTable( tbl )
+            {
+                var out = {};
+                var code;
+                for( code in tbl )
+                {
+                    if( tbl.hasOwnProperty( code ) )
+                    {
+                        out[ tbl[code] ] = code;
+                    }
+                }
+                return out;
+            }
+
+
+            // ------------------------------------------------------------------
+            // Small helpers.
+            // ------------------------------------------------------------------
+
+            // die() aborts the current operation the way otp.py's die() aborts
+            // the process -- caught by doEncipher()/doDecipher() and logged,
+            // without killing the page.
+            function die( s )
+            {
+                throw new Error( s );
+            }
+
+            function doLog( s )
+            {
+                var w = document.getElementById( 'loggingTA' );
+                w.value = w.value + s + "\n";
+            }
+
+            function clearLog()
+            {
+                document.getElementById( 'loggingTA' ).value = "";
+            }
+
+            function setOutput( s )
+            {
+                document.getElementById( 'outputTA' ).value = s;
+            }
+
+            function isDigit( ch )
+            {
+                return ch >= '0' && ch <= '9';
+            }
+
+            function hasKey( tbl, ch )
+            {
+                return Object.prototype.hasOwnProperty.call( tbl, ch );
+            }
+
+            // remove every whitespace character (used for ciphertext and key input)
+            function stripWhitespace( s )
+            {
+                return s.replace( /\s/g, '' );
+            }
+
+            // keep only the decimal digits of a string
+            function stringDigits( s )
+            {
+                var tmp = '';
+                var i;
+                for( i = 0; i < s.length; i++ )
+                {
+                    if( isDigit( s[i] ) )
+                    {
+                        tmp += s[i];
+                    }
+                }
+                return tmp;
+            }
+
+            // true if every character is in validStr
+            function firstInvalidChar( s )
+            {
+                var i;
+                var ch;
+                for( i = 0; i < s.length; i++ )
+                {
+                    ch = s[i];
+                    if( validStr.indexOf( ch ) == -1 )
+                    {
+                        return ch;
+                    }
+                }
+                return null;
+            }
+
+
+            // ----------------
+            // Morse cut shorts
+            // ----------------
+
+            function toMorseCut( s )
+            {
+                if( useMorseShorts == false )
+                {
+                    return s;
+                }
+
+                var tmp = '';
+                var i;
+                var ch;
+                for( i = 0; i < s.length; i++ )
+                {
+                    ch = s[i];
+                    if( ignoreChars.indexOf( ch ) != -1 )
+                    {
+                        continue;
+                    }
+                    if( hasKey( morseCutLetter, ch ) )
+                    {
+                        tmp += morseCutLetter[ ch ];
+                    }
+                    else
+                    {
+                        die( 'Invalid character "' + ch + '" converting to Morse cut.' );
+                    }
+                }
+                return tmp;
+            }
+
+            function fromMorseCut( s )
+            {
+                if( useMorseShorts == false )
+                {
+                    return s;
+                }
+
+                s = s.toUpperCase();
+                var tmp = '';
+                var i;
+                var ch;
+                for( i = 0; i < s.length; i++ )
+                {
+                    ch = s[i];
+                    if( ignoreChars.indexOf( ch ) != -1 )
+                    {
+                        continue;
+                    }
+                    if( hasKey( morseCutNumber, ch ) )
+                    {
+                        tmp += morseCutNumber[ ch ];
+                    }
+                    else
+                    {
+                        die( 'Invalid character "' + ch + '" converting from Morse cut.' );
+                    }
+                }
+                return tmp;
+            }
+
+
+            // ----------------------------------------
+            // Straddling-checkerboard encode / decode.
+            // ----------------------------------------
+
+            // insert the '~' alphabet-switch wherever the alphabet in use has to
+            // change, so the operator need not hand-annotate every switch.
+            function insertAlphabetSwitches( s )
+            {
+                var tmp = '';
+                var usingRoman = true;
+                var i;
+                var ch;
+                var inLat;
+                var inCyr;
+
+                for( i = 0; i < s.length; i++ )
+                {
+                    ch = s[i];
+
+                    if( ch == '~' )
+                    {
+                        usingRoman = ( usingRoman == false );
+                        tmp += ch;
+                        continue;
+                    }
+
+                    inLat = hasKey( latletter2numberTbl, ch );
+                    inCyr = hasKey( cyrletter2numberTbl, ch );
+
+                    if( inLat && !inCyr && !usingRoman )
+                    {
+                        tmp += '~';
+                        usingRoman = true;
+                    }
+                    else if( inCyr && !inLat && usingRoman )
+                    {
+                        tmp += '~';
+                        usingRoman = false;
+                    }
+
+                    tmp += ch;
+                }
+                return tmp;
+            }
+
+            // letters -> digits.  Single digits for A E N R O I T, double for the
+            // rest; '94' brackets a run of (doubled) digits; '99' switches alphabet.
+            function encode( strIn )
+            {
+                var usingRoman  = true;
+                var usingDigits = false;
+                var s = strIn.toUpperCase();
+                var tmp = '';
+                var currentTbl = latletter2numberTbl;
+
+                var bad = firstInvalidChar( s );
+                if( bad != null )
+                {
+                    die( 'Invalid character "' + displayChar( bad ) + '" (code ' + bad.charCodeAt(0) + ') in text.' );
+                }
+
+                s = insertAlphabetSwitches( s );
+
+                var lenS = s.length;
+                var x = 0;
+                var ch;
+
+                while( x < lenS )
+                {
+                    ch = s[x];
+
+                    if( ch == '#' )
+                    {
+                        usingDigits = ( usingDigits == false );
+                        tmp += digitCode;
+                    }
+                    else if( ch == '~' )
+                    {
+                        tmp += '99';
+                        usingRoman = ( usingRoman == false );
+                        currentTbl = usingRoman ? latletter2numberTbl : cyrletter2numberTbl;
+                    }
+                    else if( isDigit( ch ) )
+                    {
+                        if( !usingDigits )
+                        {
+                            if( autoInsertDigitShiftCode )
+                            {
+                                usingDigits = true;
+                                tmp += digitCode;
+                            }
+                            else
+                            {
+                                die( 'Missing digit code "#" at start of number sequence.' );
+                            }
+                        }
+                        tmp += ch + ch;
+                    }
+                    else
+                    {
+                        if( usingDigits )
+                        {
+                            if( autoInsertDigitShiftCode )
+                            {
+                                usingDigits = false;
+                                tmp += digitCode;
+                            }
+                            else
+                            {
+                                die( 'Missing "#" code to end number sequence.' );
+                            }
+                        }
+
+                        if( hasKey( currentTbl, ch ) )
+                        {
+                            tmp += currentTbl[ ch ];
+                        }
+                        else
+                        {
+                            var alphabetName = usingRoman ? 'Roman' : 'Cyrillic';
+                            die( 'Letter "' + ch + '" not in the ' + alphabetName + ' alphabet - missing "~" ?' );
+                        }
+                    }
+
+                    x += 1;
+                }
+
+                if( usingDigits )
+                {
+                    if( autoInsertDigitShiftCode )
+                    {
+                        tmp += '94';
+                    }
+                    else
+                    {
+                        die( 'Missing final "#" code to end number sequence.' );
+                    }
+                }
+
+                if( usingRoman == false )
+                {
+                    // lets multiple messages concatenate regardless of alphabet
+                    tmp += '99';
+                }
+
+                return tmp;
+            }
+
+            // digits -> letters (straddling checkerboard).
+            function decode( strIn )
+            {
+                var s = stringDigits( strIn );
+                var lenS = s.length;
+                var usingRoman = true;
+                var tmp = '';
+                var code = '';
+                var ch = '';
+                var x = 0;
+
+                var number2letterTbl = number2latletterTbl;
+
+                while( x < lenS )
+                {
+                    code = s[x];
+
+                    if( code > '6' )
+                    {
+                        // double-digit code
+                        x += 1;
+                        if( x < lenS )
+                        {
+                            code += s[x];
+                        }
+                        else
+                        {
+                            die( 'String missing a digit in decode(): ' + strIn );
+                        }
+                    }
+
+                    if( code == '94' )
+                    {
+                        // run of digits until the closing '94'
+                        x += 1;
+                        code = '';
+                        while( code != '94' )
+                        {
+                            if( lenS < ( x + 2 ) )
+                            {
+                                die( 'Number run is short a digit: ' + strIn );
+                            }
+                            code = s.substring( x, x + 2 );
+
+                            if( numberCodes.indexOf( code ) != -1 )
+                            {
+                                tmp += code[0];
+                            }
+                            else if( code == '94' )
+                            {
+                                x -= 1;
+                            }
+                            else
+                            {
+                                die( 'Bad digit pair "' + code + '" in number run: ' + strIn );
+                            }
+                            x += 2;
+                        }
+                    }
+                    else if( code == '99' )
+                    {
+                        usingRoman = ( usingRoman == false );
+                        number2letterTbl = usingRoman ? number2latletterTbl : number2cyrletterTbl;
+                    }
+                    else
+                    {
+                        if( hasKey( number2letterTbl, code ) )
+                        {
+                            tmp += number2letterTbl[ code ];
+                        }
+                        else
+                        {
+                            die( 'Code "' + code + '" is not assigned to any letter in this alphabet.' );
+                        }
+                    }
+
+                    x += 1;
+                }
+
+                return tmp;
+            }
+
+            // readable name for an invisible character in an error message.
+            function displayChar( ch )
+            {
+                if( ch == '\n' ) { return '<newline>'; }
+                if( ch == '\r' ) { return '<return>'; }
+                if( ch == ' '  ) { return '<space>'; }
+                if( ch == '\t' ) { return '<tab>'; }
+                return ch;
+            }
+
+
+            // ------------------------------------------------------------------
+            // Modular digit arithmetic
+            // Result length is len(a); the key (b) must be at least as long.
+            // ------------------------------------------------------------------
+
+            function stringAdd( a, b )
+            {
+                if( a.length > b.length )
+                {
+                    die( 'stringAdd(): message longer than key by ' + ( a.length - b.length ) + ' digits.' );
+                }
+
+                var tmp = '';
+                var x;
+                var d;
+                for( x = 0; x < a.length; x++ )
+                {
+                    d = ( a.charCodeAt(x) - 48 ) + ( b.charCodeAt(x) - 48 );
+                    if( d > 9 ) { d -= 10; }
+                    tmp += String( d );
+                }
+                return tmp;
+            }
+
+            function stringSubtract( a, b )
+            {
+                if( a.length > b.length )
+                {
+                    die( 'stringSubtract(): message longer than key by ' + ( a.length - b.length ) + ' digits.' );
+                }
+
+                var tmp = '';
+                var x;
+                var d;
+                for( x = 0; x < a.length; x++ )
+                {
+                    d = ( a.charCodeAt(x) - 48 ) - ( b.charCodeAt(x) - 48 );
+                    if( d < 0 ) { d += 10; }
+                    tmp += String( d );
+                }
+                return tmp;
+            }
+
+
+            // ------------------------------------------------------------------------
+            // Output layout: 5 digits/group, 5 groups/line, blank line every 10 lines.
+            // ------------------------------------------------------------------------
+
+            function codeGroups( s )
+            {
+                var tmp = '';
+                var lineCount  = 0;
+                var groupCount = 0;
+                var x;
+                var group;
+
+                for( x = 0; x < s.length; x += DIGITSPERGROUP )
+                {
+                    group = s.substring( x, x + DIGITSPERGROUP );
+                    tmp += group + ' ';
+
+                    groupCount += 1;
+
+                    if( groupCount >= GROUPSPERLINE )
+                    {
+                        tmp += '\n';
+                        groupCount = 0;
+                        lineCount += 1;
+
+                        if( lineCount >= LINESPERPAGE )
+                        {
+                            tmp += '\n';
+                            lineCount = 0;
+                        }
+                    }
+                }
+                return tmp;
+            }
+
+
+            // ------------------------------------------------------------------
+            // Button actions.
+            // ------------------------------------------------------------------
+
+            function doEncipher()
+            {
+                clearLog();
+                setOutput( '' );
+                useMorseShorts = document.getElementById( 'morseCB' ).checked;
+
+                try
+                {
+                    // Plaintext: keep its spaces (space is a real code, 98).
+                    // Only normalise CR out so textarea CRLF endings do not
+                    // read as an invalid character.
+                    var plain = document.getElementById( 'textTA' ).value;
+                    plain = plain.replace( /\r\n/g, '\n' ).replace( /\r/g, '\n' );
+
+                    // Step 1: encode to digits (and test we can, before enciphering).
+                    var encoded = encode( plain );
+
+                    // Step 2: key material, whitespace stripped, digits only.
+                    var key = stringDigits( stripWhitespace( document.getElementById( 'keysTA' ).value ) );
+
+                    // Step 3: ran-out-of-key test, before touching the key.
+                    if( encoded.length > key.length )
+                    {
+                        die( 'Ran out of key: message needs ' + encoded.length +
+                             ' digits, key has ' + key.length + '.' );
+                    }
+
+                    // Step 4: encipher = encoded - key
+                    var cipher = stringSubtract( encoded, key );
+
+                    // Step 5: optional Morse shorts, then lay out 5x5.
+                    var out = codeGroups( toMorseCut( cipher ) );
+                    setOutput( out );
+
+                    doLog( 'Enciphered OK: ' + encoded.length + ' key digits used, ' +
+                           ( key.length - encoded.length ) + ' left on this key.' );
+                }
+                catch( e )
+                {
+                    setOutput( '' );
+                    doLog( 'ERROR: ' + e.message );
+                }
+            }
+
+            function doDecipher()
+            {
+                clearLog();
+                setOutput( '' );
+                useMorseShorts = document.getElementById( 'morseCB' ).checked;
+
+                try
+                {
+                    // Ciphertext: strip all whitespace, then un-Morse if needed.
+                    var cipher = stripWhitespace( document.getElementById( 'textTA' ).value );
+                    cipher = fromMorseCut( cipher );
+                    cipher = stringDigits( cipher );
+
+                    // Key material, whitespace stripped, digits only.
+                    var key = stringDigits( stripWhitespace( document.getElementById( 'keysTA' ).value ) );
+
+                    // Ran-out-of-key test.
+                    if( cipher.length > key.length )
+                    {
+                        die( 'Ran out of key: ciphertext needs ' + cipher.length +
+                             ' digits, key has ' + key.length + '.' );
+                    }
+
+                    // Decipher = cipher + key, then decode.
+                    var encoded = stringAdd( cipher, key );
+                    var plain = decode( encoded );
+                    setOutput( plain );
+
+                    doLog( 'Deciphered OK: ' + cipher.length + ' key digits consumed, ' +
+                           ( key.length - cipher.length ) + ' left on this key.' );
+                }
+                catch( e )
+                {
+                    setOutput( '' );
+                    doLog( 'ERROR: ' + e.message );
+                }
+            }
+
+        </script>
+    </body>
+</html>
