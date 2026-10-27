@@ -66,6 +66,9 @@ The same OTP logic exists in a few forms, each its own project:
   not from `otp.py`/Quacque directly) — just `javac`, no Maven/Gradle. The
   cipher engine and CLI are both ported and tested; the full-screen
   "EDITOR" sentinel isn't implemented yet.
+- **[web](web)** - an HTML and Javascript single web page implementation
+  with encipher / decipher and a simple key generation function since the
+  browsers these days supposedly make a CSRNG available to JS.
 
 How it works
 -------------
