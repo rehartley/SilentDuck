@@ -3,7 +3,8 @@
          Silent Duck (SD) one-time pad (OTP) cipher, in HTML and JavaScript.
 
          A single-file, offline, browser-based otp cipher based on TRIGON
-         This enciphers / deciphers only -- NO key generation.
+         This enciphers / deciphers, and generates key books from the
+         browser's CSPRNG (see Key Generation, at the bottom).
          
          Author: Robert Hartley
          Generated: October 2024
@@ -15,7 +16,7 @@
 
     <body onload="doOnload()">
         <h2>Silent Duck</h2>
-        <i>One-time pad cipher. No key generation &mdash; paste your own key material consisting of digits and white space.</i>
+        <i>One-time pad cipher. Paste your own key material consisting of digits and white space, or generate a key book below.</i>
         <p></p>
 
         <label>Text: <i>plaintext to encipher, or ciphertext to decipher</i></label><br>
@@ -44,7 +45,32 @@
         <textarea id="loggingTA" cols="55" rows="5" style="font-family:monospace" tabindex="-1" readonly="readonly"></textarea>
         <p></p>
 
-        <i>Silent Duck &mdash; manual OTP procedure.</i>
+        <hr>
+        <h3>Key Generation</h3>
+        <i>Random digits from the browser's CSPRNG (crypto.getRandomValues), downloaded as a text file.<br>
+           Each generation is summed into the book digit by digit, no carry.<br>
+           Page numbers are lower-case Roman numerals; only the digits in the file are key.</i>
+        <p></p>
+
+        <table style="font-family:monospace">
+            <tr><td>Digits per group:</td>  <td><input id="kgGroupSize"   type="number" min="1" max="5"       value="5"  style="width:8em"></td><td><i>1 - 5</i></td></tr>
+            <tr><td>Groups per line:</td>   <td><input id="kgGroupsLine"  type="number" min="1" max="10"      value="5"  style="width:8em"></td><td><i>1 - 10</i></td></tr>
+            <tr><td>Lines per page:</td>    <td><input id="kgLinesPage"   type="number" min="1" max="100"     value="10" style="width:8em"></td><td><i>1 - 100</i></td></tr>
+            <tr><td>Pages per book:</td>    <td><input id="kgPagesBook"   type="number" min="1" max="1000"    value="25" style="width:8em"></td><td><i>1 - 1000</i></td></tr>
+            <tr><td>Generations:</td>       <td><input id="kgGenerations" type="number" min="1" max="1000000" value="1"  style="width:8em"></td><td><i>1 - 1000000</i></td></tr>
+        </table>
+        <p></p>
+
+        <button onclick="doGenerateKeys()">Generate &amp; Download</button>
+        <i>(the page will not respond until generation finishes)</i>
+        <p></p>
+
+        <label>Key Generation Log:</label><br>
+        <textarea id="kgLogTA" cols="55" rows="8" style="font-family:monospace" tabindex="-1" readonly="readonly"></textarea>
+        <br>
+        <p></p>
+
+        <i>Silent Duck &mdash; TRIGON style manual OTP procedure.</i>
 
         <script>
 
@@ -691,6 +717,207 @@
                 {
                     setOutput( '' );
                     doLog( 'ERROR: ' + e.message );
+                }
+            }
+
+
+            // ------------------------------------------------------------------
+            // Key generation.
+            // Runs to completion on the page; the tab does not respond until
+            // it is done.
+            // ------------------------------------------------------------------
+
+            function kgLog( s )
+            {
+                var w = document.getElementById( 'kgLogTA' );
+                w.value = w.value + s + "\n";
+            }
+
+            // n random digits (0..9 values), summed digit-wise with no carry
+            // over the given number of generations.
+            function generateBook( n, generations )
+            {
+                var book = new Uint8Array( n );
+                var buf  = new Uint8Array( 65536 );   // getRandomValues limit
+                var pos  = buf.length;                // force a refill on first use
+                var g, i, b, d;
+
+                for( g = 0; g < generations; g++ )
+                {
+                    i = 0;
+                    while( i < n )
+                    {
+                        if( pos >= buf.length )
+                        {
+                            crypto.getRandomValues( buf );
+                            pos = 0;
+                        }
+                        b = buf[ pos++ ];
+
+                        // reject 250..255 so each digit 0..9 is equally likely
+                        if( b >= 250 )
+                        {
+                            continue;
+                        }
+
+                        d = book[i] + ( b % 10 );
+                        book[i] = ( d > 9 ) ? d - 10 : d;
+                        i++;
+                    }
+                }
+                return book;
+            }
+
+            // read a whole-number field and check it is within 1..max
+            function readKeygenParam( id, name, max )
+            {
+                var s = document.getElementById( id ).value.trim();
+                if( !/^[0-9]+$/.test( s ) )
+                {
+                    die( name + ' must be a whole number.' );
+                }
+                var n = parseInt( s, 10 );
+                if( n < 1 || n > max )
+                {
+                    die( name + ' must be between 1 and ' + max + '.' );
+                }
+                return n;
+            }
+
+            // lower-case Roman numeral, for page numbers (contains no digits,
+            // so it is filtered out with the rest of the non-key text)
+            function toRoman( n )
+            {
+                var vals = [ 1000, 900, 500, 400, 100, 90, 50, 40, 10, 9, 5, 4, 1 ];
+                var syms = [ 'm', 'cm', 'd', 'cd', 'c', 'xc', 'l', 'xl', 'x', 'ix', 'v', 'iv', 'i' ];
+                var tmp = '';
+                var i;
+                for( i = 0; i < vals.length; i++ )
+                {
+                    while( n >= vals[i] )
+                    {
+                        tmp += syms[i];
+                        n -= vals[i];
+                    }
+                }
+                return tmp;
+            }
+
+            // ISO time for the filename: 2026-10-25T16:25:30.123Z -> 2026-10-25-162530Z
+            function fileStamp( d )
+            {
+                var s = d.toISOString();
+                return s.substring( 0, 10 ) + '-' +
+                       s.substring( 11, 13 ) + s.substring( 14, 16 ) + s.substring( 17, 19 ) + 'Z';
+            }
+
+            function pad( n, width )
+            {
+                var s = String( n );
+                while( s.length < width )
+                {
+                    s = '0' + s;
+                }
+                return s;
+            }
+
+            // milliseconds -> h:mm:ss.mmm
+            function formatElapsed( ms )
+            {
+                ms = Math.round( ms );
+                var h = Math.floor( ms / 3600000 );
+                var m = Math.floor( ms / 60000 ) % 60;
+                var s = Math.floor( ms / 1000 ) % 60;
+                return h + ':' + pad( m, 2 ) + ':' + pad( s, 2 ) + '.' + pad( ms % 1000, 3 );
+            }
+
+            // digits (0..9 values) -> text: page number line, then the lines of
+            // groups, with a blank line between pages.
+            function formatBook( book, p )
+            {
+                var i;
+                for( i = 0; i < book.length; i++ )
+                {
+                    book[i] += 48;   // to ASCII '0'..'9'
+                }
+                var digits = new TextDecoder( 'ascii' ).decode( book );
+
+                var pages = [];
+                var x = 0;
+                var pg, ln, gr, lines, groups;
+
+                for( pg = 0; pg < p.pagesBook; pg++ )
+                {
+                    lines = [ toRoman( pg + 1 ) ];
+                    for( ln = 0; ln < p.linesPage; ln++ )
+                    {
+                        groups = [];
+                        for( gr = 0; gr < p.groupsLine; gr++ )
+                        {
+                            groups.push( digits.substring( x, x + p.groupSize ) );
+                            x += p.groupSize;
+                        }
+                        lines.push( groups.join( ' ' ) );
+                    }
+                    pages.push( lines.join( '\n' ) + '\n' );
+                }
+                return pages.join( '\n' );
+            }
+
+            function downloadText( filename, text )
+            {
+                var blob = new Blob( [ text ], { type: 'text/plain' } );
+                var url  = URL.createObjectURL( blob );
+                var a    = document.createElement( 'a' );
+                a.href     = url;
+                a.download = filename;
+                document.body.appendChild( a );
+                a.click();
+                document.body.removeChild( a );
+                setTimeout( function() { URL.revokeObjectURL( url ); }, 1000 );
+            }
+
+            function doGenerateKeys()
+            {
+                document.getElementById( 'kgLogTA' ).value = '';
+
+                try
+                {
+                    var p = {
+                        groupSize:   readKeygenParam( 'kgGroupSize',   'Digits per group', 5 ),
+                        groupsLine:  readKeygenParam( 'kgGroupsLine',  'Groups per line',  10 ),
+                        linesPage:   readKeygenParam( 'kgLinesPage',   'Lines per page',   100 ),
+                        pagesBook:   readKeygenParam( 'kgPagesBook',   'Pages per book',   1000 ),
+                        generations: readKeygenParam( 'kgGenerations', 'Generations',      1000000 )
+                    };
+                    var digits = p.groupSize * p.groupsLine * p.linesPage * p.pagesBook;
+
+                    var start     = new Date();
+                    var startPerf = performance.now();
+
+                    var book = generateBook( digits, p.generations );
+                    var text = formatBook( book, p );
+
+                    var stop    = new Date();
+                    var elapsed = performance.now() - startPerf;
+
+                    var filename = fileStamp( start ) + '-' +
+                                   [ p.groupSize, p.groupsLine, p.linesPage, p.pagesBook, p.generations ].join( '-' ) +
+                                   '.txt';
+
+                    kgLog( 'Book:    ' + p.groupSize + ' digits/group, ' + p.groupsLine + ' groups/line, ' +
+                           p.linesPage + ' lines/page, ' + p.pagesBook + ' pages' );
+                    kgLog( 'Digits:  ' + digits + ' per book, ' + p.generations + ' generation(s)' );
+                    kgLog( 'Start:   ' + start.toISOString() );
+                    kgLog( 'Stop:    ' + stop.toISOString() );
+                    kgLog( 'Elapsed: ' + formatElapsed( elapsed ) + ' (' + Math.round( elapsed ) + ' ms)' );
+                    kgLog( 'File:    ' + filename );
+
+                    downloadText( filename, text );
+                }
+                catch( e )
+                {
+                    kgLog( 'ERROR: ' + e.message );
                 }
             }
 

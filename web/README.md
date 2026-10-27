@@ -21,9 +21,10 @@ The page deliberately follows the house style of
   load, and a visible logging pane — so a reader can follow the data flow
   line by line.
 
-`sd.html` is a **cipher only**. It performs **no key generation** (that remains
-the job of [otp.py](../otp.py)). The operator supplies both the message text and
-the key material.
+`sd.html` is a **cipher** plus a **key-book generator**. The operator supplies
+both the message text and the key material for enciphering/deciphering; key
+books can be generated from the browser's CSPRNG and downloaded as a text file
+(see [§11](#11-key-generation)).
 
 ## 2. Model: what we copy from `otp.py`
 
@@ -85,8 +86,16 @@ The page presents the following widgets, in order down the page:
 6. **Output** — read-only multi-line area for the result.
 7. **Log / Status** — read-only multi-line area for errors and notes.
 
-Key generation is **intentionally absent**. There is no "generate", no
-"decimate", and no file I/O — material is pasted in and results are read out.
+Below these, a separate **Key Generation** section ([§11](#11-key-generation)):
+
+8. **Digits per group**, **Groups per line**, **Lines per page**,
+   **Pages per book**, **Generations** — whole-number inputs.
+9. **Generate & Download** — button. Builds the key book and downloads it.
+10. **Key Generation Log** — read-only area for the run's parameters, start,
+    stop and elapsed time, filename, or an error.
+
+The cipher side does no file I/O — material is pasted in and results are read
+out. The only file I/O on the page is the key-book download.
 
 ## 4. Processing pipelines
 
@@ -228,10 +237,75 @@ written to **Output**. The two expected conditions are:
 - **Repudiation is a feature.** Because any ciphertext can be "decrypted" to any
   equal-length text with a suitable key, Silent Duck output is inherently
   deniable — a property worth demonstrating to students.
+- **Downloaded key books persist.** A generated book stays in the Downloads
+  folder and in the browser's download history until the operator removes it.
 
-## 11. Non-goals
+## 11. Key generation
 
-- No key generation, randomness, or entropy handling.
-- No file reading/writing, download, or clipboard automation.
+The **Generate & Download** button builds a key book of random digits from the
+browser's CSPRNG (`crypto.getRandomValues`) and downloads it.
+
+### 11.1 Parameters
+
+| Input | Default | Range |
+| --- | --- | --- |
+| Digits per group | 5 | 1 – 5 |
+| Groups per line | 5 | 1 – 10 |
+| Lines per page | 10 | 1 – 100 |
+| Pages per book | 25 | 1 – 1000 |
+| Generations | 1 | 1 – 1,000,000 |
+
+Anything outside its range, or not a whole number, is reported in the Key
+Generation Log and nothing is generated.
+
+### 11.2 Generation
+
+1. The book size is `digits/group × groups/line × lines/page × pages` digits
+   (at most 5,000,000).
+2. Random bytes are drawn from `crypto.getRandomValues` in 64 KB blocks (the
+   API's per-call limit). Bytes **250–255 are rejected**, and the rest are
+   taken **mod 10**, so every digit 0–9 is equally likely.
+3. **Generations:** the book is generated that many times and each generation
+   is **added digit by digit, mod 10, with no carry** into the running book —
+   as if each new generation enciphered the previous one. `1` means a single
+   generation.
+
+Generation runs on the page itself, so **the tab does not respond until it
+finishes**. Large books with many generations can run for hours; the browser
+may show "page unresponsive" prompts — choose **Wait**. Stopping the page
+abandons the run and nothing is saved.
+
+### 11.3 File layout
+
+- Each page starts with its **page number as a lower-case Roman numeral** on a
+  line of its own (`i`, `ii`, … `m`).
+- Then the page's lines, each holding its groups separated by single spaces.
+- A **blank line** separates pages.
+
+Only the digits in the file are key. The page numbers and whitespace are
+ignored: the **Keys** field keeps digits only (see [§8](#8-whitespace-rules-summary)),
+so pages can be pasted in as-is.
+
+### 11.4 Filename
+
+The file is named from the **generation start time in UTC** (ISO 8601 with
+`T` and `:` dropped, seconds kept) followed by the five parameters, all
+separated by dashes:
+
+```
+YYYY-MM-DD-HHMMSSZ-<digits/group>-<groups/line>-<lines/page>-<pages>-<generations>.txt
+2026-10-25-162530Z-5-5-10-25-1.txt
+```
+
+### 11.5 Log
+
+When the run finishes the Key Generation Log shows the book parameters, the
+digits per book and number of generations, the **start** and **stop** times
+(ISO 8601, UTC), the **elapsed** time (`h:mm:ss.mmm` and milliseconds), and the
+filename. Elapsed time covers generation and page layout, up to the download.
+
+## 12. Non-goals
+
+- No reading of files, and no clipboard automation.
 - No network access of any kind.
 - No persistence between sessions.
